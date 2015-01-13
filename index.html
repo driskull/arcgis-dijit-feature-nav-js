@@ -1,0 +1,118 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+  <title>A Dijit</title>
+  <link rel="stylesheet" href="/git/arcgis-js-api/esri/css/esri.css">
+
+
+
+
+  <style>
+    body {
+      margin: 40px;
+      padding: 20px;
+    }
+    .container {
+      position: relative;
+      padding: 10px;
+      border: 1px solid #eee;
+      -webkit-border-radius: 3px;
+      border-radius: 3px;
+    }
+    .panel {
+      width: 30%;
+      height: 500px;
+      float: left;
+    }
+    .map {
+      width: 70%;
+      float: left;
+      height: 500px;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    .clear {
+      clear: both;
+    }
+  </style>
+
+
+
+
+
+  <script type="text/javascript">
+    var package_path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+    var dojoConfig = {
+      // The locationPath logic below may look confusing but all its doing is 
+      // enabling us to load the api from a CDN and load local modules from the correct location.
+      packages: [{
+        name: "application",
+        location: package_path + '/js'
+      }],
+      paths: {
+        "esri": "../esri"
+      }
+    };
+  </script>
+
+
+
+
+
+
+  <script src="/git/arcgis-js-api/dojo/dojo.js"></script>
+  <script type="text/javascript">
+    var fn, myMap, lyr;
+
+    require(["esri/map", "esri/layers/FeatureLayer", "application/FeatureNav", "dojo/on"], function (Map, FeatureLayer, FeatureNav, on) {
+
+      myMap = new Map("map", {
+        center: [-97.99480078123793, 38.51310605081534],
+        zoom: 7,
+        basemap: "streets"
+      });
+      
+      lyr = new FeatureLayer("http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Petroleum/KGS_OilGasFields_Kansas/MapServer/0", {
+      });
+      
+      myMap.addLayer(lyr);
+
+      fn = new FeatureNav({
+        map: myMap,
+        layers: [lyr],
+      }, "featureNav");
+      fn.startup();
+
+    });
+  </script>
+
+
+
+
+
+</head>
+
+<body>
+
+
+
+  <div class="container">
+    <div class="panel">
+      <div id="featureNav"></div>
+    </div>
+    <div class="map">
+      <div id="map" class="map"></div>
+    </div>
+    <div class="clear"></div>
+  </div>
+
+
+
+</body>
+
+</html>
