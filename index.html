@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
   <title>A Dijit</title>
   <link rel="stylesheet" href="/git/arcgis-js-api/esri/css/esri.css">
-
+  <link rel="stylesheet" href="css/FeatureNav.css">
 
 
 
@@ -15,6 +15,7 @@
       margin: 40px;
       padding: 20px;
     }
+    
     .container {
       position: relative;
       padding: 10px;
@@ -22,20 +23,25 @@
       -webkit-border-radius: 3px;
       border-radius: 3px;
     }
+    
     .panel {
       width: 30%;
       height: 500px;
       float: left;
+      overflow: auto;
     }
+    
     .map {
       width: 70%;
       float: left;
       height: 500px;
     }
+    
     #map {
       width: 100%;
       height: 100%;
     }
+    
     .clear {
       clear: both;
     }
@@ -76,15 +82,25 @@
         zoom: 7,
         basemap: "streets"
       });
-      
-      lyr = new FeatureLayer("http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Petroleum/KGS_OilGasFields_Kansas/MapServer/0", {
-      });
-      
+
+      lyr = new FeatureLayer("http://services.arcgis.com/DO4gTjwJVIJ7O9Ca/arcgis/rest/services/GeoForm_Survey_v11_live/FeatureServer/0", {});
+
       myMap.addLayer(lyr);
 
       fn = new FeatureNav({
         map: myMap,
-        layers: [lyr],
+        sources: [{
+          template: "${Comments}",
+          displayFields: ["Comments"],
+          
+          
+          sortFields: ["Comments"],
+          defaultSortOrder: "DESC",
+          
+          
+          num: 10,
+          featureLayer: lyr
+        }],
       }, "featureNav");
       fn.startup();
 

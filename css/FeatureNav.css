@@ -1,0 +1,11 @@
+.FeatureNav ul{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.FeatureNav ul li{
+  padding: 6px 12px;
+  margin: 0;
+  cursor: pointer;
+}
