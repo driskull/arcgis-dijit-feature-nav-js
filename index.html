@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
   <title>A Dijit</title>
   <link rel="stylesheet" href="/git/arcgis-js-api/esri/css/esri.css">
-  <link rel="stylesheet" href="css/FeatureNav.css">
+  <link rel="stylesheet" href="js/FeatureNav/css/FeatureNav.css">
 
 
 
@@ -89,16 +89,15 @@
 
       fn = new FeatureNav({
         map: myMap,
+        num: 10,
+        start: 0,
+        order: "ASC",
+        activeSourceIndex: 0,
+        visible: true,
+
         sources: [{
           template: "${Comments}",
-          displayFields: ["Comments"],
-          
-          
-          sortFields: ["Comments"],
-          defaultSortOrder: "DESC",
-          
-          
-          num: 10,
+          outFields: ["Comments"],
           featureLayer: lyr
         }],
       }, "featureNav");
