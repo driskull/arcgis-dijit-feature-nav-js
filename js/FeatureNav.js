@@ -18,13 +18,13 @@ define([
     "dojo/i18n!./FeatureNav/nls/FeatureNav",
     "esri/tasks/query",
     "dojo/string",
+    "dojo/query",
     // dom manipulation
     "dojo/dom-style",
     "dojo/dom-class",
     "dojo/dom-attr",
     "dojo/Deferred",
-
-    //"./Pagination",
+    "dojo/window",
 
     // wait for dom to be ready
     "dojo/domReady!"
@@ -38,14 +38,15 @@ define([
     i18n,
     Query,
     string,
+    query,
     domStyle, domClass, domAttr,
     Deferred,
-    Pagination
+    win
   ) {
     return declare([_WidgetBase, _TemplatedMixin, Evented], {
       // my html template string
       templateString: dijitTemplate,
-      declaredClass: "dijit.pagination",
+      declaredClass: "dijit.FeatureNav",
 
       // default options
       options: {
@@ -54,6 +55,7 @@ define([
         sources: [],
         num: 10,
         start: 0,
+        count: 0,
         order: "ASC",
         activeSourceIndex: 0,
         visible: true
@@ -65,7 +67,20 @@ define([
       constructor: function (options, srcRefNode) {
         // css classes
         this.css = {
-          list: "list"
+          list: "list-group",
+          listItem: "list-group-item",
+          active: "active",
+          panel: "panel",
+          panelBody: "panel-body",
+          panelDefault: "panel-default",
+          btn: "btn",
+          btnDefault: "btn-default",
+          glyphIcon: "glyphicon",
+          sortAsc: "glyphicon-triangle-top",
+          sortDesc: "glyphicon-triangle-bottom",
+          form: "form-inline",
+          formGroup: "form-group",
+          formControl: "form-control"
         };
         // language
         this._i18n = i18n;
@@ -82,6 +97,7 @@ define([
         this.set("order", defaults.order);
         this.set("activeSourceIndex", defaults.activeSourceIndex);
         this.set("visible", defaults.visible);
+        this.set("count", defaults.count);
       },
       // _TemplatedMixin implements buildRendering() for you. Use this to override
       // buildRendering: function() {},
@@ -89,8 +105,6 @@ define([
       postCreate: function () {
         // set visibility
         this._updateVisible();
-        this._updateSelectMenu();
-        this._updateOrder();
         this.own(on(this._sortNode, "change", lang.hitch(this, this._getFeatures)));
         this.own(on(this._orderNode, "click", lang.hitch(this, this._orderClick)));
         this.own(on(this._resultsNode, "li:click", lang.hitch(this, this._resultClick)));
@@ -124,6 +138,7 @@ define([
           this._selectFeature(feature);
         } else {
           // todo
+          console.log("test");
         }
       },
       /* ---------------- */
@@ -138,17 +153,18 @@ define([
         this.set("order", newOrder);
       },
       _updateOrder: function () {
-        var html, title;
+        var title;
         var order = this.order.toUpperCase();
-        if (this.order === "DESC") {
-          html = "&#9660;";
+        if (order === "DESC") {
+          domClass.add(this._orderIconNode, this.css.sortDesc);
+          domClass.remove(this._orderIconNode, this.css.sortAsc);
           title = i18n.descending;
         } else {
-          html = "&#9650;";
+          domClass.remove(this._orderIconNode, this.css.sortDesc);
+          domClass.add(this._orderIconNode, this.css.sortAsc);
           title = i18n.ascending;
         }
         domAttr.set(this._orderNode, "title", title);
-        this._orderNode.innerHTML = html;
       },
       _updateSelectMenu: function () {
         var layer = this.sources[this.activeSourceIndex].featureLayer;
@@ -164,8 +180,20 @@ define([
           this._sortNode.innerHTML = html;
         }));
       },
+      _resultHighlight: function (e) {
+        var q = query("li", this._resultsNode);
+        for (var i = 0; i < q.length; i++) {
+          if (q[i] === e) {
+            domClass.add(q[i], this.css.active);
+            win.scrollIntoView(q[i]);
+          } else {
+            domClass.remove(q[i], this.css.active);
+          }
+        }
+      },
       _resultClick: function (e) {
         var objectid = domAttr.get(e.target, "data-objectid");
+        this._resultHighlight(e.target);
         this._selectObject(objectid);
       },
       _selectObject: function (objectid) {
@@ -225,10 +253,34 @@ define([
           }
         }
       },
+      _getFeatureCount: function () {
+        var def = new Deferred();
+        var source = this.sources[this.activeSourceIndex];
+        var layer = source.featureLayer;
+        this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
+          var fields = source.outFields || layer.outFields;
+          fields.push(layer.objectIdField);
+          var q = new Query();
+          q.returnGeometry = false;
+          q.where = "1=1";
+          layer.queryCount(q, lang.hitch(this, function (response) {
+            def.resolve(response);
+          }), lang.hitch(this, function (error) {
+            def.reject(error);
+          }));
+        }), lang.hitch(this, function (error) {
+          def.reject(error);
+        }));
+        return def;
+      },
       _getFeatures: function () {
         var def = new Deferred();
         var source = this.sources[this.activeSourceIndex];
         var layer = source.featureLayer;
+        if (this.map.infoWindow) {
+          this.map.infoWindow.clearFeatures();
+          this.map.infoWindow.hide();
+        }
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
           var fields = source.outFields || layer.outFields;
           fields.push(layer.objectIdField);
@@ -239,7 +291,7 @@ define([
           q.orderByFields = [this._sortNode.value + " " + this.order];
           q.outFields = fields;
           q.num = this.num;
-          //q.geometry = source.searchExtent;
+          q.start = this.start;
           layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
             this._displayResults(layer, featureSet);
             def.resolve();
@@ -252,12 +304,14 @@ define([
         return def;
       },
       _init: function () {
-        this._getFeatures().then(lang.hitch(this, function () {
-          this.set("loaded", true);
-          // emit event
-          this.emit("load", {});
-        }), lang.hitch(this, function (error) {
-          console.error(error);
+        this._layerChanged().then(lang.hitch(this, function () {
+          this._getFeatures().then(lang.hitch(this, function () {
+            this.set("loaded", true);
+            // emit event
+            this.emit("load", {});
+          }), lang.hitch(this, function (error) {
+            console.error(error);
+          }));
         }));
       },
       _sub: function (str) {
@@ -275,7 +329,7 @@ define([
         for (var i = 0; i < features.length; i++) {
           var feature = features[i];
           var sub = string.substitute(t, feature.attributes, this._sub);
-          html += "<li data-objectid=\"" + feature.attributes[layer.objectIdField] + "\">" + sub + "</li>";
+          html += "<li class=\"" + this.css.listItem + "\" data-objectid=\"" + feature.attributes[layer.objectIdField] + "\">" + sub + "</li>";
         }
         html += "</ul>";
         this._resultsNode.innerHTML = html;
@@ -309,9 +363,37 @@ define([
           this.hide();
         }
       },
+      _layerClick: function () {
+        var source = this.sources[this.activeSourceIndex];
+        var layer = source.featureLayer;
+        // remove event
+        if (this._layerClickEvt) {
+          this._layerClickEvt.remove();
+        }
+        // create event
+        this._layerClickEvt = this.own(on(layer, "click", lang.hitch(this, function (e) {
+          var graphic = e.graphic;
+          var result;
+          if (graphic) {
+            var id = graphic.attributes[layer.objectIdField];
+            if (id) {
+              var q = query("li[data-objectid=" + id + "]", this._resultsNode);
+              if (q && q.length) {
+                result = q[0];
+              }
+            }
+          }
+          this._resultHighlight(result);
+        })));
+      },
       _layerChanged: function () {
-        this._updateSelectMenu();
-        this._updateOrder();
+        return this._getFeatureCount().then(lang.hitch(this, function (count) {
+          this.set("count", count);
+          this.set("start", 0);
+          this._updateSelectMenu();
+          this._updateOrder();
+          this._layerClick();
+        }));
       },
       /* ---------------- */
       /* Stateful Functions */
@@ -337,6 +419,7 @@ define([
       },
       _setOrderAttr: function (newVal) {
         this.order = newVal.toUpperCase();
+        this.set("start", 0);
         if (this._created) {
           this._updateOrder();
           this._getFeatures();

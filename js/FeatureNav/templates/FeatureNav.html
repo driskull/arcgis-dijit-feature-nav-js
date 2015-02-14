@@ -1,7 +1,12 @@
 <div class="${theme}">
-  <div>
-    <div><span>${_i18n.sort}</span>
-      <select data-dojo-attach-point="_sortNode"></select><span data-dojo-attach-point="_orderNode"></span>
+  <div class="${css.panel} ${css.panelDefault}">
+    <div class="${css.panelBody}">
+      <form class="${css.form}">
+        <div class="${css.formGroup}">
+          <label>${_i18n.sort}</label>
+          <select class="${css.formControl}" data-dojo-attach-point="_sortNode"></select> <span class="${css.btn} ${css.btnDefault}" data-dojo-attach-point="_orderNode"><span class="${css.glyphIcon}" data-dojo-attach-point="_orderIconNode"></span></span>
+        </div>
+      </form>
     </div>
   </div>
   <div data-dojo-attach-point="_resultsNode"></div>

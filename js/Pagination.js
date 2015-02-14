@@ -4,42 +4,36 @@ define([
   "dojo/Evented",
   "dojo/dom-attr",
   "dojo/dom-class",
-  "dojo/i18n!./Pagination/nls/Pagination.js",
+  "dojo/i18n!./Pagination/nls/Pagination",
   "dojo/on",
   "dojo/query",
   "dojo/text!./Pagination/templates/Pagination.html",
   "dojo/number",
+  "dojo/string",
   "dijit/_TemplatedMixin",
   "dijit/_WidgetBase"
 ],
-  function (declare, lang, Evented, domAttr, domClass, i18n, on, query, template, number, _TemplatedMixin, _WidgetBase) {
+  function (declare, lang, Evented, domAttr, domClass, i18n, on, query, template, number, string, _TemplatedMixin, _WidgetBase) {
     var Pagination = declare([_WidgetBase, _TemplatedMixin, Evented], {
       // dijit HTML
       templateString: template,
-      declaredClass: "dijit.pagination",
+      declaredClass: "dijit.Pagination",
       constructor: function (options, srcRefNode) {
         // css class names
         this.css = {
-          containerClass: 'pageDijitContainer',
-          selectedClass: 'pageDijitSelected',
-          newSelectedClass: 'pageDijitNewSelected',
-          listClass: "pageDijitList",
-          itemClass: 'pageDijitItem',
-          itemEnabledClass: 'pageDijitItemEnabled',
-          itemDisabledClass: 'pageDijitItemDisabled',
-          itemMiddleClass: 'pageDijitItemMiddle',
-          itemFirstClass: 'pageDijitItemFirst',
-          itemLastClass: 'pageDijitItemLast',
-          itemPreviousClass: 'pageDijitItemPrevious',
-          itemNextClass: 'pageDijitItemNext',
-          clearClass: 'pageDijitClear'
+          active: "active",
+          pagination: "pagination",
+          disabled: "disabled",
+          glyphicon: "glyphicon",
+          left: "glyphicon-menu-left",
+          right: "glyphicon-menu-right",
         };
         // defaults
         this.options = {
           totalResults: 0,
           resultsPerPage: 10,
-          currentPage: 0,
-          pagesPerSide: 2,
+          currentPage: 1,
+          pagesPerSide: 1,
           showPreviousNext: true,
           showFirstLast: true,
           theme: "dojoPage"
@@ -58,6 +52,9 @@ define([
         this.domNode = srcRefNode;
         // Internationalization
         this._i18n = i18n;
+        this._dataAttr = "data-page";
+        this._dataAttrDisabled = "disabled";
+        this._itemTemplate = "<li role=\"button\" tabindex=\"0\" class=\"${className}\"><a href=\"#\" title=\"${title}\" aria-label=\"${title}\" " + this._dataAttr + "=\"${page}\">${text}</a></li>";
       },
       /* ---------------- */
       /* Public Functions */
@@ -73,47 +70,52 @@ define([
 
       postCreate: function () {
         // setup connections
-        this.own(on(this.listNode, '[data-page]:click', lang.hitch(this, function (evt) {
+        this.own(on(this.listNode, "[" + this._dataAttr + "]:click", lang.hitch(this, function (evt) {
           if (!this.disabled) {
             var target = evt.target;
-            // disable more clicking for now
-            this.set("disabled", true);
-            // all selected items
-            var items = query('.' + this.css.selectedClass, this.listNode);
-            // remove selected class
-            for (var i = 0; i < items.length; i++) {
-              domClass.remove(items[i], this.css.selectedClass);
+            var pg = domAttr.get(target, this._dataAttr);
+            if (pg && pg !== this._dataAttrDisabled) {
+              // disable more clicking for now
+              this.set("disabled", true);
+              // all selected items
+              var items = query("." + this.css.active, this.listNode);
+              // remove selected class
+              for (var i = 0; i < items.length; i++) {
+                domClass.remove(items[i], this.css.active);
+              }
+              // add selected class
+              domClass.add(target, this.css.active);
+              // get offset number
+              var selectedPage = parseInt(pg, 10);
+              var selectedResultStart = (selectedPage - 1) * this.resultsPerPage;
+              var selectedResultEnd = selectedResultStart + this.resultsPerPage;
+              // set new page
+              this.set("currentPage", selectedPage);
+              // event
+              this.emit("page", {
+                selectedPage: selectedPage,
+                selectedResultStart: selectedResultStart,
+                selectedResultEnd: selectedResultEnd
+              });
             }
-            // add selected class
-            domClass.add(target, this.css.newSelectedClass);
-            // get offset number
-            var pg = domAttr.get(target, "data-page");
-            var selectedPage = parseInt(pg, 10);
-            var selectedResultStart = selectedPage * this.resultsPerPage;
-            var selectedResultEnd = selectedResultStart + this.resultsPerPage;
-            // set new page
-            this.set('currentPage', selectedPage);
-            // event
-            this.emit("page", {
-              selectedPage: selectedPage,
-              selectedResultStart: selectedResultStart,
-              selectedResultEnd: selectedResultEnd
-            });
+            evt.preventDefault();
+            evt.stopPropagation();
           }
         })));
       },
 
       render: function () {
         // variables
-        this._html = '';
-        this._startHTML = '';
-        this._middleHTML = '';
-        this._endHTML = '';
+        this._html = "";
+        var tpl;
+        this._startHTML = "";
+        this._middleHTML = "";
+        this._endHTML = "";
         this._middleCount = 0;
         this._lastMiddle = 0;
         this._firstMiddle = 0;
         this._npCount = 0;
-        this._helipText = '';
+        this._helipText = "";
         this._totalMiddlePages = (2 * this.pagesPerSide) + 1;
         this._helipText = i18n.pagination.helip || "";
         this.currentResultStart = this.currentPage * this.resultsPerPage;
@@ -142,42 +144,72 @@ define([
           this._paginationCount = this._npCount + this._totalMiddlePages;
           // if pages matches size of pagination
           if (this.totalPages === this._paginationCount) {
-            this._helipText = '';
+            this._helipText = "";
           }
           // pagination previous
           if (this.showPreviousNext) {
-            var firstClass = this.css.itemDisabledClass,
-              firstOffset = '';
+            var firstClass = this.css.disabled,
+              firstOffset = "";
             if (this._currentIndex > 1) {
-              firstClass = this.css.itemEnabledClass;
-              firstOffset = 'data-page="' + this._previousPage + '"';
+              firstClass = "";
+              firstOffset = this._previousPage;
+            } else {
+              firstOffset = this._dataAttrDisabled;
             }
-            this._startHTML += '<li role="button" tabindex="0" title="' + this._i18n.pagination.previousTitle + '" class="' + this.css.itemClass + ' ' + this.css.itemPreviousClass + ' ' + firstClass + '" ' + firstOffset + '>' + i18n.pagination.previous + '</li>';
+            // template
+            tpl = string.substitute(this._itemTemplate, {
+              className: firstClass,
+              title: i18n.pagination.previousTitle,
+              page: firstOffset,
+              text: "<span aria-hidden=\"true\" class=\"" + this.css.glyphicon + " " + this.css.left + "\"></span>",
+            });
+            this._startHTML += tpl;
           }
           // always show first and last pages
           if (this.showFirstLast) {
             // pagination first page
             if (this._currentIndex > (this.pagesPerSide + 1)) {
-              this._startHTML += '<li role="button" tabindex="0" class="' + this.css.itemClass + ' ' + this.css.itemFirstClass + ' ' + this.css.itemEnabledClass + '" title="' + this._i18n.pagination.firstTitle + '" data-page="' + this._firstPage + '">' + number.format(this._firstPage) + this._helipText + '</li>';
+              // template
+              tpl = string.substitute(this._itemTemplate, {
+                className: "",
+                title: this._i18n.pagination.firstTitle,
+                page: this._firstPage,
+                text: number.format(this._firstPage) + this._helipText
+              });
+              this._startHTML += tpl;
             } else {
               this._middleCount = this._middleCount - 1;
             }
             // pagination last page
             if (this._currentIndex < (this.totalPages - this.pagesPerSide)) {
-              this._endHTML += '<li role="button" tabindex="0" class="' + this.css.itemClass + ' ' + this.css.itemLastClass + ' ' + this.css.itemEnabledClass + '" title="' + this._i18n.pagination.lastTitle + ' (' + number.format(this.totalPages) + ')" data-page="' + this.totalPages + '">' + this._helipText + number.format(this.totalPages) + '</li>';
+              tpl = string.substitute(this._itemTemplate, {
+                className: "",
+                title: this._i18n.pagination.lastTitle + " (" + number.format(this.totalPages) + ")",
+                page: this.totalPages,
+                text: this._helipText + number.format(this.totalPages)
+              });
+              this._endHTML += tpl;
             } else {
               this._middleCount = this._middleCount - 1;
             }
           }
           // pagination next
           if (this.showPreviousNext) {
-            var lastClass = this.css.itemDisabledClass,
-              lastOffset = '';
+            var lastClass = this.css.disabled,
+              lastOffset = "";
             if (this._currentIndex < this.totalPages) {
-              lastClass = this.css.itemEnabledClass;
-              lastOffset = 'data-page="' + this._nextPage + '"';
+              lastClass = "";
+              lastOffset = this._nextPage;
+            } else {
+              lastOffset = this._dataAttrDisabled;
             }
-            this._endHTML += '<li role="button" tabindex="0" title="' + this._i18n.pagination.nextTitle + '" class="' + this.css.itemClass + ' ' + this.css.itemNextClass + ' ' + lastClass + '" ' + lastOffset + '>' + i18n.pagination.next + '</li>';
+            tpl = string.substitute(this._itemTemplate, {
+              className: lastClass,
+              title: i18n.pagination.nextTitle,
+              page: lastOffset,
+              text: "<span aria-hidden=\"true\" class=\"" + this.css.glyphicon + " " + this.css.right + "\"></span>"
+            });
+            this._endHTML += tpl;
           }
           // create each pagination item
           for (var i = 1; i <= this.totalPages; i++) {
@@ -254,15 +286,19 @@ define([
 
       _createMiddleItem: function (e) {
         // class
-        var listClass = this.css.itemEnabledClass;
-        var dataPage = 'data-page="' + e.index + '"';
+        var listClass = "";
+        var dataPage = e.index;
         if (e.index === e.currentIndex) {
           // if selected
-          listClass = this.css.selectedClass;
-          dataPage = '';
+          listClass = this.css.active;
+          dataPage = this._dataAttrDisabled;
         }
-        // page list item
-        return '<li role="button" tabindex="0" title="' + this._i18n.pagination.pageTitle + ' ' + number.format(e.index) + '" ' + dataPage + ' class="' + this.css.itemClass + ' ' + this.css.itemMiddleClass + ' ' + listClass + '">' + number.format(e.index) + '</li>';
+        return string.substitute(this._itemTemplate, {
+          className: listClass,
+          title: number.format(e.index),
+          page: dataPage,
+          text: number.format(e.index)
+        });
       },
 
       _setTotalResultsAttr: function (newVal) {
