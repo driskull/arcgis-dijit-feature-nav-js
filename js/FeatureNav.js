@@ -1,4 +1,5 @@
 define([
+    "require",
     // For emitting events
     "dojo/Evented",
     // needed to create a class
@@ -26,11 +27,11 @@ define([
     "dojo/dom-attr",
     "dojo/Deferred",
     "dojo/window",
-    "./Pagination",
     // wait for dom to be ready
     "dojo/domReady!"
 ],
   function (
+    require,
     Evented,
     declare, lang, array,
     _WidgetBase, a11yclick, _TemplatedMixin,
@@ -42,8 +43,7 @@ define([
     query,
     domStyle, domClass, domAttr,
     Deferred,
-    win,
-    Pagination
+    win
   ) {
     return declare([_WidgetBase, _TemplatedMixin, Evented], {
       // my html template string
@@ -61,6 +61,7 @@ define([
         order: "ASC",
         sortField: null,
         activeSourceIndex: 0,
+        pagination: true,
         visible: true
       },
 
@@ -103,23 +104,26 @@ define([
         this.set("activeSourceIndex", defaults.activeSourceIndex);
         this.set("visible", defaults.visible);
         this.set("count", defaults.count);
+        this.set("pagination", defaults.pagination);
       },
       // _TemplatedMixin implements buildRendering() for you. Use this to override
       // buildRendering: function() {},
       // called after buildRendering() is finished
       postCreate: function () {
-        this._pagination = new Pagination({
-          total: 0
-        }, this._paginationNode);
-        this._pagination.startup();
+        if (this.pagination) {
+          require(["./Pagination"], lang.hitch(this, function (Pagination) {
+            this._pagination = new Pagination({}, this._paginationNode);
+            this._pagination.startup();
+            this.own(on(this._pagination, "page", lang.hitch(this, function (e) {
+              this.set("start", e.selectedResultStart);
+            })));
+          }));
+        }
         // set visibility
         this._updateVisible();
         this.own(on(this._sortNode, "change", lang.hitch(this, this._sortChange)));
         this.own(on(this._orderNode, "click", lang.hitch(this, this._orderClick)));
         this.own(on(this._resultsNode, "li:click", lang.hitch(this, this._resultClick)));
-        this.own(on(this._pagination, "page", lang.hitch(this, function (e) {
-          this.set("start", e.selectedResultStart);
-        })));
         this.own(on(this.map.infoWindow, "selection-change", lang.hitch(this, function (e) {
           var graphic = this.map.infoWindow.getSelectedFeature();
           if (graphic) {
@@ -223,13 +227,16 @@ define([
         }));
       },
       _resultHighlight: function (e) {
-        var q = query("li", this._resultsNode);
-        for (var i = 0; i < q.length; i++) {
-          if (q[i] === e) {
-            domClass.add(q[i], this.css.active);
-            win.scrollIntoView(q[i]);
-          } else {
-            domClass.remove(q[i], this.css.active);
+        var isActive = domClass.contains(e, this.css.active);
+        if (!isActive) {
+          var q = query("li", this._resultsNode);
+          for (var i = 0; i < q.length; i++) {
+            if (q[i] === e) {
+              domClass.add(q[i], this.css.active);
+              win.scrollIntoView(q[i]);
+            } else {
+              domClass.remove(q[i], this.css.active);
+            }
           }
         }
       },
@@ -438,14 +445,18 @@ define([
       _setCountAttr: function (newVal) {
         this.count = newVal;
         if (this._created) {
-          this._pagination.set("total", newVal);
+          if (this._pagination) {
+            this._pagination.set("total", newVal);
+          }
         }
       },
       _setOrderAttr: function (newVal) {
         this.order = newVal.toUpperCase();
         if (this._created) {
           this._updateOrder();
-          this._pagination.set("page", 0);
+          if (this._pagination) {
+            this._pagination.set("page", 0);
+          }
           this.set("start", 0);
         }
       },
@@ -460,7 +471,9 @@ define([
       _setSortFieldAttr: function (newVal) {
         this.sortField = newVal;
         if (this._created) {
-          this._pagination.set("page", 0);
+          if (this._pagination) {
+            this._pagination.set("page", 0);
+          }
           this.set("start", 0);
         }
       },
