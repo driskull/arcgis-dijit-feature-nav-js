@@ -4,6 +4,7 @@ define([
     // needed to create a class
     "dojo/_base/declare",
     "dojo/_base/lang",
+    "dojo/_base/array",
     // widget class
     "dijit/_WidgetBase",
     // accessibility click
@@ -25,13 +26,13 @@ define([
     "dojo/dom-attr",
     "dojo/Deferred",
     "dojo/window",
-
+    "./Pagination",
     // wait for dom to be ready
     "dojo/domReady!"
 ],
   function (
     Evented,
-    declare, lang,
+    declare, lang, array,
     _WidgetBase, a11yclick, _TemplatedMixin,
     on,
     dijitTemplate,
@@ -41,7 +42,8 @@ define([
     query,
     domStyle, domClass, domAttr,
     Deferred,
-    win
+    win,
+    Pagination
   ) {
     return declare([_WidgetBase, _TemplatedMixin, Evented], {
       // my html template string
@@ -57,6 +59,7 @@ define([
         start: 0,
         count: 0,
         order: "ASC",
+        sortField: null,
         activeSourceIndex: 0,
         visible: true
       },
@@ -84,6 +87,7 @@ define([
         };
         // language
         this._i18n = i18n;
+        this._dataObjectId = "data-objectid";
         // mix in settings and defaults
         var defaults = lang.mixin({}, this.options, options);
         // create the DOM for this widget
@@ -95,6 +99,7 @@ define([
         this.set("num", defaults.num);
         this.set("start", defaults.start);
         this.set("order", defaults.order);
+        this.set("sortField", defaults.sortField);
         this.set("activeSourceIndex", defaults.activeSourceIndex);
         this.set("visible", defaults.visible);
         this.set("count", defaults.count);
@@ -103,11 +108,38 @@ define([
       // buildRendering: function() {},
       // called after buildRendering() is finished
       postCreate: function () {
+        this._pagination = new Pagination({
+          total: 0
+        }, this._paginationNode);
+        this._pagination.startup();
         // set visibility
         this._updateVisible();
-        this.own(on(this._sortNode, "change", lang.hitch(this, this._getFeatures)));
+        this.own(on(this._sortNode, "change", lang.hitch(this, this._sortChange)));
         this.own(on(this._orderNode, "click", lang.hitch(this, this._orderClick)));
         this.own(on(this._resultsNode, "li:click", lang.hitch(this, this._resultClick)));
+        this.own(on(this._pagination, "page", lang.hitch(this, function (e) {
+          this.set("start", e.selectedResultStart);
+        })));
+        this.own(on(this.map.infoWindow, "selection-change", lang.hitch(this, function (e) {
+          var graphic = this.map.infoWindow.getSelectedFeature();
+          if (graphic) {
+            var layer = graphic.getLayer();
+            var source = this.sources[this.activeSourceIndex];
+            if (layer && source && layer === source.featureLayer) {
+              var result;
+              if (graphic) {
+                var id = graphic.attributes[layer.objectIdField];
+                if (id) {
+                  var q = query("li[" + this._dataObjectId + "=" + id + "]", this._resultsNode);
+                  if (q && q.length) {
+                    result = q[0];
+                  }
+                }
+              }
+              this._resultHighlight(result);
+            }
+          }
+        })));
       },
       // start widget. called by user
       startup: function () {
@@ -144,6 +176,9 @@ define([
       /* ---------------- */
       /* Private Functions */
       /* ---------------- */
+      _sortChange: function () {
+        this.set("sortField", this._sortNode.value);
+      },
       _orderClick: function () {
         var order = this.order.toUpperCase();
         var newOrder = "ASC";
@@ -153,23 +188,25 @@ define([
         this.set("order", newOrder);
       },
       _updateOrder: function () {
-        var title;
+        var title, text;
         var order = this.order.toUpperCase();
         if (order === "DESC") {
           domClass.add(this._orderIconNode, this.css.sortDesc);
           domClass.remove(this._orderIconNode, this.css.sortAsc);
           title = i18n.descending;
+          text = i18n.desc;
         } else {
           domClass.remove(this._orderIconNode, this.css.sortDesc);
           domClass.add(this._orderIconNode, this.css.sortAsc);
           title = i18n.ascending;
+          text = i18n.asc;
         }
+        this._orderTextNode.innerHTML = text;
         domAttr.set(this._orderNode, "title", title);
       },
       _updateSelectMenu: function () {
         var layer = this.sources[this.activeSourceIndex].featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
-          console.log(layer.fields);
           var fields = layer.fields;
           var html = "";
           for (var i = 0; i < fields.length; i++) {
@@ -178,6 +215,11 @@ define([
             html += "<option value=\"" + field.name + "\">" + alias + "</option>";
           }
           this._sortNode.innerHTML = html;
+          if (fields[0]) {
+            this.sortField = fields[0].name;
+          } else {
+            this.sortField = null;
+          }
         }));
       },
       _resultHighlight: function (e) {
@@ -192,9 +234,12 @@ define([
         }
       },
       _resultClick: function (e) {
-        var objectid = domAttr.get(e.target, "data-objectid");
-        this._resultHighlight(e.target);
-        this._selectObject(objectid);
+        var objectid = domAttr.get(e.target, this._dataObjectId);
+        var active = domClass.contains(e.target, this.css.active);
+        if (!active) {
+          this._resultHighlight(e.target);
+          this._selectObject(objectid);
+        }
       },
       _selectObject: function (objectid) {
         var layer = this.sources[this.activeSourceIndex].featureLayer;
@@ -258,8 +303,6 @@ define([
         var source = this.sources[this.activeSourceIndex];
         var layer = source.featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
-          var fields = source.outFields || layer.outFields;
-          fields.push(layer.objectIdField);
           var q = new Query();
           q.returnGeometry = false;
           q.where = "1=1";
@@ -283,12 +326,15 @@ define([
         }
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
           var fields = source.outFields || layer.outFields;
-          fields.push(layer.objectIdField);
+          var hasObjectId = array.indexOf(fields, layer.objectIdField);
+          if (hasObjectId === -1) {
+            fields.push(layer.objectIdField);
+          }
           var q = new Query();
           q.outSpatialReference = this.map.spatialReference;
           q.returnGeometry = false;
           q.where = "1=1";
-          q.orderByFields = [this._sortNode.value + " " + this.order];
+          q.orderByFields = [this.sortField + " " + this.order];
           q.outFields = fields;
           q.num = this.num;
           q.start = this.start;
@@ -305,13 +351,9 @@ define([
       },
       _init: function () {
         this._layerChanged().then(lang.hitch(this, function () {
-          this._getFeatures().then(lang.hitch(this, function () {
-            this.set("loaded", true);
-            // emit event
-            this.emit("load", {});
-          }), lang.hitch(this, function (error) {
-            console.error(error);
-          }));
+          this.set("loaded", true);
+          // emit event
+          this.emit("load", {});
         }));
       },
       _sub: function (str) {
@@ -329,7 +371,7 @@ define([
         for (var i = 0; i < features.length; i++) {
           var feature = features[i];
           var sub = string.substitute(t, feature.attributes, this._sub);
-          html += "<li class=\"" + this.css.listItem + "\" data-objectid=\"" + feature.attributes[layer.objectIdField] + "\">" + sub + "</li>";
+          html += "<li class=\"" + this.css.listItem + "\" " + this._dataObjectId + "=\"" + feature.attributes[layer.objectIdField] + "\">" + sub + "</li>";
         }
         html += "</ul>";
         this._resultsNode.innerHTML = html;
@@ -363,36 +405,13 @@ define([
           this.hide();
         }
       },
-      _layerClick: function () {
-        var source = this.sources[this.activeSourceIndex];
-        var layer = source.featureLayer;
-        // remove event
-        if (this._layerClickEvt) {
-          this._layerClickEvt.remove();
-        }
-        // create event
-        this._layerClickEvt = this.own(on(layer, "click", lang.hitch(this, function (e) {
-          var graphic = e.graphic;
-          var result;
-          if (graphic) {
-            var id = graphic.attributes[layer.objectIdField];
-            if (id) {
-              var q = query("li[data-objectid=" + id + "]", this._resultsNode);
-              if (q && q.length) {
-                result = q[0];
-              }
-            }
-          }
-          this._resultHighlight(result);
-        })));
-      },
+
       _layerChanged: function () {
         return this._getFeatureCount().then(lang.hitch(this, function (count) {
-          this.set("count", count);
-          this.set("start", 0);
           this._updateSelectMenu();
           this._updateOrder();
-          this._layerClick();
+          this.set("count", count);
+          this.set("start", 0);
         }));
       },
       /* ---------------- */
@@ -402,7 +421,6 @@ define([
         this.activeSourceIndex = newVal;
         if (this._created) {
           this._layerChanged();
-          this._getFeatures();
         }
       },
       _setNumAttr: function (newVal) {
@@ -417,12 +435,18 @@ define([
           this._getFeatures();
         }
       },
+      _setCountAttr: function (newVal) {
+        this.count = newVal;
+        if (this._created) {
+          this._pagination.set("total", newVal);
+        }
+      },
       _setOrderAttr: function (newVal) {
         this.order = newVal.toUpperCase();
-        this.set("start", 0);
         if (this._created) {
           this._updateOrder();
-          this._getFeatures();
+          this._pagination.set("page", 0);
+          this.set("start", 0);
         }
       },
       // note: changing the theme will require the developer to style the widget.
@@ -432,6 +456,13 @@ define([
           domClass.add(this.domNode, newVal);
         }
         this.theme = newVal;
+      },
+      _setSortFieldAttr: function (newVal) {
+        this.sortField = newVal;
+        if (this._created) {
+          this._pagination.set("page", 0);
+          this.set("start", 0);
+        }
       },
       _setVisibleAttr: function (newVal) {
         this.visible = newVal;

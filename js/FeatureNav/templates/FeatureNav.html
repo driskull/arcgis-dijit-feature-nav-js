@@ -4,10 +4,11 @@
       <form class="${css.form}">
         <div class="${css.formGroup}">
           <label>${_i18n.sort}</label>
-          <select class="${css.formControl}" data-dojo-attach-point="_sortNode"></select> <span class="${css.btn} ${css.btnDefault}" data-dojo-attach-point="_orderNode"><span class="${css.glyphIcon}" data-dojo-attach-point="_orderIconNode"></span></span>
+          <select class="${css.formControl}" data-dojo-attach-point="_sortNode"></select> <span class="${css.btn} ${css.btnDefault}" data-dojo-attach-point="_orderNode"><span class="${css.glyphIcon}" data-dojo-attach-point="_orderIconNode"></span> <span data-dojo-attach-point="_orderTextNode"></span></span>
         </div>
       </form>
     </div>
   </div>
   <div data-dojo-attach-point="_resultsNode"></div>
+  <div data-dojo-attach-point="_paginationNode"></div>
 </div>

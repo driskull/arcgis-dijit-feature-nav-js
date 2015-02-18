@@ -79,32 +79,17 @@
         visible: true,
 
         sources: [{
-          template: "${Email}<br> ${Comments}",
-          outFields: ["Email", "Comments"],
+          template: "${Email}",
+          outFields: ["Email"],
           featureLayer: lyr
         }],
       }, "featureNav");
       fn.startup();
-      
-      pg = new Pagination({
-        totalResults: 0
-      }, "pagination");
-      pg.startup();
-      
-      fn.watch("count", function(name, oldValue, value){
-        console.log(name, oldValue, value);
-        pg.set("totalResults", value);
-      });
-      
-      on(pg, "page", function(e){
-        console.log(e);
-        //fn.set();
-        fn.set("start", e.selectedResultStart);
-      });
-      
-      
-      
-      
+
+
+
+
+
 
     });
   </script>
@@ -129,7 +114,6 @@
     <div class="row">
       <div class="col-sm-12 col-md-5">
         <div id="featureNav"></div>
-        <div id="pagination"></div>
       </div>
       <div class="col-sm-12 col-md-7">
         <div class="map">

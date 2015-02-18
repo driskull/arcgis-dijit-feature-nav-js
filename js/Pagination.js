@@ -30,9 +30,9 @@ define([
         };
         // defaults
         this.options = {
-          totalResults: 0,
-          resultsPerPage: 10,
-          currentPage: 1,
+          total: 0,
+          num: 10,
+          page: 1,
           pagesPerSide: 1,
           showPreviousNext: true,
           showFirstLast: true,
@@ -42,9 +42,9 @@ define([
         var defaults = lang.mixin({}, this.options, options);
         // properties
         this.set("theme", defaults.theme);
-        this.set("totalResults", defaults.totalResults);
-        this.set("resultsPerPage", defaults.resultsPerPage);
-        this.set("currentPage", defaults.currentPage);
+        this.set("total", defaults.total);
+        this.set("num", defaults.num);
+        this.set("page", defaults.page);
         this.set("pagesPerSide", defaults.pagesPerSide);
         this.set("showPreviousNext", defaults.showPreviousNext);
         this.set("showFirstLast", defaults.showFirstLast);
@@ -87,10 +87,10 @@ define([
               domClass.add(target, this.css.active);
               // get offset number
               var selectedPage = parseInt(pg, 10);
-              var selectedResultStart = (selectedPage - 1) * this.resultsPerPage;
-              var selectedResultEnd = selectedResultStart + this.resultsPerPage;
+              var selectedResultStart = (selectedPage - 1) * this.num;
+              var selectedResultEnd = selectedResultStart + this.num;
               // set new page
-              this.set("currentPage", selectedPage);
+              this.set("page", selectedPage);
               // event
               this.emit("page", {
                 selectedPage: selectedPage,
@@ -118,13 +118,13 @@ define([
         this._helipText = "";
         this._totalMiddlePages = (2 * this.pagesPerSide) + 1;
         this._helipText = i18n.pagination.helip || "";
-        this.currentResultStart = this.currentPage * this.resultsPerPage;
-        this.currentResultEnd = this.currentResultStart + this.resultsPerPage;
+        this.currentResultStart = this.page * this.num;
+        this.currentResultEnd = this.currentResultStart + this.num;
         // if pagination is necessary
-        if (this.resultsPerPage && (this.totalResults > this.resultsPerPage)) {
+        if (this.num && (this.total > this.num)) {
           // determine offset links
-          if (this.currentPage) {
-            this._currentIndex = parseInt(this.currentPage, 10);
+          if (this.page) {
+            this._currentIndex = parseInt(this.page, 10);
           } else {
             this._currentIndex = 1;
           }
@@ -135,7 +135,7 @@ define([
           // next link
           this._nextPage = this._currentIndex + 1;
           // last link
-          this.totalPages = Math.ceil(this.totalResults / this.resultsPerPage);
+          this.totalPages = Math.ceil(this.total / this.num);
           // determine next and previous count
           if (this.showPreviousNext) {
             this._npCount = 2;
@@ -161,7 +161,7 @@ define([
               className: firstClass,
               title: i18n.pagination.previousTitle,
               page: firstOffset,
-              text: "<span aria-hidden=\"true\" class=\"" + this.css.glyphicon + " " + this.css.left + "\"></span>",
+              text: "<span " + this._dataAttr + "=\"" + firstOffset + "\" aria-hidden=\"true\" class=\"" + this.css.glyphicon + " " + this.css.left + "\"></span>",
             });
             this._startHTML += tpl;
           }
@@ -207,7 +207,7 @@ define([
               className: lastClass,
               title: i18n.pagination.nextTitle,
               page: lastOffset,
-              text: "<span aria-hidden=\"true\" class=\"" + this.css.glyphicon + " " + this.css.right + "\"></span>"
+              text: "<span " + this._dataAttr + "=\"" + lastOffset + "\" aria-hidden=\"true\" class=\"" + this.css.glyphicon + " " + this.css.right + "\"></span>"
             });
             this._endHTML += tpl;
           }
@@ -301,22 +301,22 @@ define([
         });
       },
 
-      _setTotalResultsAttr: function (newVal) {
-        this.totalResults = newVal;
+      _setTotalAttr: function (newVal) {
+        this.total = newVal;
         if (this._created) {
           this.render();
         }
       },
 
-      _setResultsPerPageAttr: function (newVal) {
-        this.resultsPerPage = newVal;
+      _setNumAttr: function (newVal) {
+        this.num = newVal;
         if (this._created) {
           this.render();
         }
       },
 
-      _setCurrentPageAttr: function (newVal) {
-        this.currentPage = newVal;
+      _setPageAttr: function (newVal) {
+        this.page = newVal;
         if (this._created) {
           this.render();
         }
