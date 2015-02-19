@@ -84,7 +84,8 @@ define([
           sortDesc: "glyphicon-triangle-bottom",
           form: "form-inline",
           formGroup: "form-group",
-          formControl: "form-control"
+          formControl: "form-control",
+          hidden: "hidden"
         };
         // language
         this._i18n = i18n;
@@ -130,17 +131,10 @@ define([
             var layer = graphic.getLayer();
             var source = this.sources[this.activeSourceIndex];
             if (layer && source && layer === source.featureLayer) {
-              var result;
               if (graphic) {
                 var id = graphic.attributes[layer.objectIdField];
-                if (id) {
-                  var q = query("li[" + this._dataObjectId + "=" + id + "]", this._resultsNode);
-                  if (q && q.length) {
-                    result = q[0];
-                  }
-                }
               }
-              this._resultHighlight(result);
+              this._resultHighlight(id);
             }
           }
         })));
@@ -170,12 +164,7 @@ define([
         this.set("visible", false);
       },
       select: function (feature) {
-        if (feature) {
-          this._selectFeature(feature);
-        } else {
-          // todo
-          console.log("test");
-        }
+        return this._selectFeature(feature);
       },
       /* ---------------- */
       /* Private Functions */
@@ -209,42 +198,60 @@ define([
         domAttr.set(this._orderNode, "title", title);
       },
       _updateSelectMenu: function () {
-        var layer = this.sources[this.activeSourceIndex].featureLayer;
+        var source = this.sources[this.activeSourceIndex];
+        var layer = source.featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
-          var fields = layer.fields;
+
+
+          var fields = [];
+          source.template.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g,
+            function (match, key, format) {
+              fields.push(key);
+            });
           var html = "";
-          for (var i = 0; i < fields.length; i++) {
-            var field = fields[i];
-            var alias = field.alias || field.name;
-            html += "<option value=\"" + field.name + "\">" + alias + "</option>";
+
+          if (fields && fields.length > 1) {
+            array.forEach(layer.fields, function (item) {
+              if (array.indexOf(fields, item.name) !== -1) {
+                var alias = item.alias || item.name;
+                html += "<option value=\"" + item.name + "\">" + alias + "</option>";
+              }
+            });
+            domClass.remove(this._sortFieldArea, this.css.hidden);
+          } else {
+            domClass.add(this._sortFieldArea, this.css.hidden);
           }
           this._sortNode.innerHTML = html;
+
+
           if (fields[0]) {
-            this.sortField = fields[0].name;
+            this.sortField = fields[0];
           } else {
             this.sortField = null;
           }
+
         }));
       },
-      _resultHighlight: function (e) {
-        var isActive = domClass.contains(e, this.css.active);
-        if (!isActive) {
-          var q = query("li", this._resultsNode);
-          for (var i = 0; i < q.length; i++) {
-            if (q[i] === e) {
-              domClass.add(q[i], this.css.active);
-              win.scrollIntoView(q[i]);
-            } else {
-              domClass.remove(q[i], this.css.active);
-            }
-          }
+      _removeResultsHighlight: function () {
+        var q = query("li", this._resultsNode);
+        for (var i = 0; i < q.length; i++) {
+          domClass.remove(q[i], this.css.active);
         }
+      },
+      _resultHighlight: function (id) {
+        this._removeResultsHighlight();
+        var q = query("li[" + this._dataObjectId + "=" + id + "]", this._resultsNode);
+        for (var i = 0; i < q.length; i++) {
+          domClass.add(q[i], this.css.active);
+          win.scrollIntoView(q[i]);
+        }
+
       },
       _resultClick: function (e) {
         var objectid = domAttr.get(e.target, this._dataObjectId);
         var active = domClass.contains(e.target, this.css.active);
         if (!active) {
-          this._resultHighlight(e.target);
+          this._resultHighlight(objectid);
           this._selectObject(objectid);
         }
       },
@@ -298,9 +305,7 @@ define([
             }
             zoomTo.then(lang.hitch(this, function () {
               this.map.infoWindow.setFeatures([feature]);
-              if (feature.infoTemplate) {
-                this.map.infoWindow.show(point);
-              }
+              this.map.infoWindow.show(point);
             }));
           }
         }
@@ -332,7 +337,11 @@ define([
           this.map.infoWindow.hide();
         }
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
-          var fields = source.outFields || layer.outFields;
+          var fields = [];
+          source.template.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g,
+            function (match, key, format) {
+              fields.push(key);
+            });
           var hasObjectId = array.indexOf(fields, layer.objectIdField);
           if (hasObjectId === -1) {
             fields.push(layer.objectIdField);
@@ -365,7 +374,7 @@ define([
       },
       _sub: function (str) {
         if (!str) {
-          return "Untitled";
+          return "";
         }
         return str;
       },

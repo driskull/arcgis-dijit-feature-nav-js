@@ -3,8 +3,13 @@
     <div class="${css.panelBody}">
       <form class="${css.form}">
         <div class="${css.formGroup}">
-          <label>${_i18n.sort}</label>
-          <select class="${css.formControl}" data-dojo-attach-point="_sortNode"></select> <span class="${css.btn} ${css.btnDefault}" data-dojo-attach-point="_orderNode"><span class="${css.glyphIcon}" data-dojo-attach-point="_orderIconNode"></span> <span data-dojo-attach-point="_orderTextNode"></span></span>
+          <span data-dojo-attach-point="_sortFieldArea">
+          <label for="${id}_sort_label">${_i18n.sort}</label>
+          <select id="${id}_sort_label" class="${css.formControl}" data-dojo-attach-point="_sortNode"></select></span>
+          <span data-dojo-attach-point="_sortFieldArea">
+          <label for="${id}_sort_order">${_i18n.order}</label>
+          <span tabindex="0" id="${id}_sort_order" class="${css.btn} ${css.btnDefault}" data-dojo-attach-point="_orderNode"><span class="${css.glyphIcon}" data-dojo-attach-point="_orderIconNode"></span> <span data-dojo-attach-point="_orderTextNode"></span></span>
+          </span>
         </div>
       </form>
     </div>

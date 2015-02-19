@@ -63,7 +63,7 @@
       lyr = new FeatureLayer("http://services.arcgis.com/DO4gTjwJVIJ7O9Ca/arcgis/rest/services/GeoForm_Survey_v11_live/FeatureServer/0", {});
 
       var template = new InfoTemplate();
-      template.setTitle("test");
+      template.setTitle("GeoForm Rating");
       template.setContent("${*}");
       lyr.setInfoTemplate(template);
 
@@ -79,8 +79,7 @@
         visible: true,
 
         sources: [{
-          template: "${Email}",
-          outFields: ["Email"],
+          template: "${Email} rated it a ${Rating}/5!",
           featureLayer: lyr
         }],
       }, "featureNav");
