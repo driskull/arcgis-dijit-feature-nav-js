@@ -113,7 +113,9 @@ define([
       postCreate: function () {
         if (this.pagination) {
           require(["./Pagination"], lang.hitch(this, function (Pagination) {
-            this._pagination = new Pagination({}, this._paginationNode);
+            this._pagination = new Pagination({
+              num: this.num
+            }, this._paginationNode);
             this._pagination.startup();
             this.own(on(this._pagination, "page", lang.hitch(this, function (e) {
               this.set("start", e.selectedResultStart);
@@ -201,8 +203,6 @@ define([
         var source = this.sources[this.activeSourceIndex];
         var layer = source.featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
-
-
           var fields = [];
           source.template.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g,
             function (match, key, format) {
