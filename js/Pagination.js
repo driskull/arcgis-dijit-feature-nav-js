@@ -27,6 +27,7 @@ define([
           glyphicon: "glyphicon",
           left: "glyphicon-menu-left",
           right: "glyphicon-menu-right",
+          hiddenXS: "hidden-xs"
         };
         // defaults
         this.options = {
@@ -54,7 +55,7 @@ define([
         this._i18n = i18n;
         this._dataAttr = "data-page";
         this._dataAttrDisabled = "disabled";
-        this._itemTemplate = "<li role=\"button\" tabindex=\"0\" class=\"${className}\"><a href=\"#\" title=\"${title}\" aria-label=\"${title}\" " + this._dataAttr + "=\"${page}\">${text}</a></li>";
+        this._itemTemplate = "<li role=\"button\" class=\"${className}\"><a href=\"#\" title=\"${title}\" aria-label=\"${title}\" " + this._dataAttr + "=\"${page}\">${text}</a></li>";
       },
       /* ---------------- */
       /* Public Functions */
@@ -171,7 +172,7 @@ define([
             if (this._currentIndex > (this.pagesPerSide + 1)) {
               // template
               tpl = string.substitute(this._itemTemplate, {
-                className: "",
+                className: this.css.hiddenXS,
                 title: this._i18n.pagination.firstTitle,
                 page: this._firstPage,
                 text: number.format(this._firstPage) + this._helipText
@@ -183,7 +184,7 @@ define([
             // pagination last page
             if (this._currentIndex < (this.totalPages - this.pagesPerSide)) {
               tpl = string.substitute(this._itemTemplate, {
-                className: "",
+                className: this.css.hiddenXS,
                 title: this._i18n.pagination.lastTitle + " (" + number.format(this.totalPages) + ")",
                 page: this.totalPages,
                 text: this._helipText + number.format(this.totalPages)
@@ -294,7 +295,7 @@ define([
           dataPage = this._dataAttrDisabled;
         }
         return string.substitute(this._itemTemplate, {
-          className: listClass,
+          className: listClass + " " + this.css.hiddenXS,
           title: number.format(e.index),
           page: dataPage,
           text: number.format(e.index)
