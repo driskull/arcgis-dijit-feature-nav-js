@@ -79,6 +79,9 @@
         sources: [{
           template: "${Email} rated it a ${Rating}/5 on ${CreationDate}",
           featureLayer: lyr
+        }, {
+          template: "test ${Email}",
+          featureLayer: lyr
         }],
       }, "featureNav");
       fn.startup();

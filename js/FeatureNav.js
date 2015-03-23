@@ -27,6 +27,7 @@ define([
     "dojo/dom-attr",
     "dojo/Deferred",
     "dojo/window",
+    "dojo/promise/all",
     // wait for dom to be ready
     "dojo/domReady!"
 ],
@@ -43,7 +44,8 @@ define([
     query,
     domStyle, domClass, domAttr,
     Deferred,
-    win
+    win,
+    all
   ) {
     return declare([_WidgetBase, _TemplatedMixin, Evented], {
       // my html template string
@@ -82,7 +84,8 @@ define([
           glyphIcon: "glyphicon",
           sortAsc: "glyphicon-triangle-top",
           sortDesc: "glyphicon-triangle-bottom",
-          form: "form-inline",
+          form: "form",
+          formInline: "form-inline",
           formGroup: "form-group",
           formControl: "form-control",
           hidden: "hidden"
@@ -96,7 +99,7 @@ define([
         this.domNode = srcRefNode;
         // set properties
         this.set("theme", defaults.theme);
-        this.set("map", defaults.map);
+        this.set("map", defaults.map); // readonly todo
         this.set("sources", defaults.sources);
         this.set("num", defaults.num);
         this.set("start", defaults.start);
@@ -105,7 +108,7 @@ define([
         this.set("activeSourceIndex", defaults.activeSourceIndex);
         this.set("visible", defaults.visible);
         this.set("count", defaults.count);
-        this.set("pagination", defaults.pagination);
+        this.set("pagination", defaults.pagination); // readonly todo
       },
       // _TemplatedMixin implements buildRendering() for you. Use this to override
       // buildRendering: function() {},
@@ -122,8 +125,10 @@ define([
             })));
           }));
         }
+        this._displaySources();
         // set visibility
         this._updateVisible();
+        this.own(on(this._layerNode, "change", lang.hitch(this, this._layerChange)));
         this.own(on(this._sortNode, "change", lang.hitch(this, this._sortChange)));
         this.own(on(this._orderNode, "click", lang.hitch(this, this._orderClick)));
         this.own(on(this._resultsNode, "li:click", lang.hitch(this, this._resultClick)));
@@ -141,6 +146,16 @@ define([
           }
         })));
       },
+      
+      destroy: function(){
+        
+        if(this._pagination){
+          this._pagination.destroy(); 
+        }
+        
+        this.inherited(arguments);  
+      },
+      
       // start widget. called by user
       startup: function () {
         if (this.map) {
@@ -171,8 +186,36 @@ define([
       /* ---------------- */
       /* Private Functions */
       /* ---------------- */
+      _displaySources: function () {
+        var promises = [];
+        var html = "";
+        var sources = this.sources;
+        if (sources && sources.length > 1) {
+          for (var i = 0; i < sources.length; i++) {
+            promises.push(this._featureLayerLoaded(sources[i].featureLayer));
+          }
+          all(promises).then(lang.hitch(this, function(){
+            for (var i = 0; i < sources.length; i++) {
+              var source = sources[i];
+              var name = source.name || source.featureLayer.name;
+              var value = i;
+              html += "<option value=\"" + value + "\">" + name + "</option>";
+            }
+            domClass.remove(this._layerArea, this.css.hidden);
+
+            this._layerNode.innerHTML = html;
+          }));
+        } else {
+          domClass.add(this._layerArea, this.css.hidden);
+        }
+      },
       _sortChange: function () {
         this.set("sortField", this._sortNode.value);
+      },
+      _layerChange: function () {
+        var value = this._layerNode.value;
+        var intVal = parseInt(value, 10);
+        this.set("activeSourceIndex", intVal);
       },
       _orderClick: function () {
         var order = this.order.toUpperCase();
@@ -199,7 +242,7 @@ define([
         this._orderTextNode.innerHTML = text;
         domAttr.set(this._orderNode, "title", title);
       },
-      _updateSelectMenu: function () {
+      _updateFieldsMenu: function () {
         var source = this.sources[this.activeSourceIndex];
         var layer = source.featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
@@ -421,10 +464,9 @@ define([
           this.hide();
         }
       },
-
       _layerChanged: function () {
         return this._getFeatureCount().then(lang.hitch(this, function (count) {
-          this._updateSelectMenu();
+          this._updateFieldsMenu();
           this._updateOrder();
           this.set("count", count);
           this.set("start", 0);
@@ -443,6 +485,12 @@ define([
         this.num = newVal;
         if (this._created) {
           this._getFeatures();
+        }
+      },
+      _setSourcesAttr: function (newVal) {
+        this.sources = newVal;
+        if (this._created) {
+          this._displaySources();
         }
       },
       _setStartAttr: function (newVal) {
