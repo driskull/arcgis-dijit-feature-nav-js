@@ -285,12 +285,15 @@ define([
           domClass.remove(q[i], this.css.active);
         }
       },
-      _resultHighlight: function (id) {
+      _resultHighlight: function (id, scrollIntoView) {
         this._removeResultsHighlight();
         var q = query("li[" + this._dataObjectId + "=" + id + "]", this._resultsNode);
         for (var i = 0; i < q.length; i++) {
           domClass.add(q[i], this.css.active);
-          win.scrollIntoView(q[i]);
+          var active = domClass.contains(q[i], this.css.active);
+          if (!active) {
+            win.scrollIntoView(q[i]);
+          }
         }
 
       },
@@ -298,6 +301,7 @@ define([
         var objectid = domAttr.get(e, this._dataObjectId);
         var active = domClass.contains(e, this.css.active);
         if (!active) {
+          win.scrollIntoView(this.map.container);
           this._resultHighlight(objectid);
           this._selectObject(objectid);
         }
