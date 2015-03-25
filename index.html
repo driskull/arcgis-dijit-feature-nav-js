@@ -53,7 +53,9 @@
         basemap: "streets"
       });
 
-      lyr = new FeatureLayer("http://services.arcgis.com/DO4gTjwJVIJ7O9Ca/arcgis/rest/services/GeoForm_Survey_v11_live/FeatureServer/0", {});
+      lyr = new FeatureLayer("http://services.arcgis.com/DO4gTjwJVIJ7O9Ca/arcgis/rest/services/GeoForm_Survey_v11_live/FeatureServer/0", {
+        outFields: ["*"]
+      });
 
       var template = new InfoTemplate();
       template.setTitle("GeoForm Rating");
