@@ -93,6 +93,7 @@ define([
         // language
         this._i18n = i18n;
         this._dataObjectId = "data-objectid";
+        this._deferreds = [];
         // mix in settings and defaults
         var defaults = lang.mixin({}, this.options, options);
         // create the DOM for this widget
@@ -128,10 +129,13 @@ define([
         this._displaySources();
         // set visibility
         this._updateVisible();
+        var _self = this;
         this.own(on(this._layerNode, "change", lang.hitch(this, this._layerChange)));
         this.own(on(this._sortNode, "change", lang.hitch(this, this._sortChange)));
-        this.own(on(this._orderNode, "click", lang.hitch(this, this._orderClick)));
-        this.own(on(this._resultsNode, "li:click", lang.hitch(this, this._resultClick)));
+        this.own(on(this._orderNode, a11yclick, lang.hitch(this, this._orderClick)));
+        this.own(on(this._resultsNode, "li:click", function () {
+          _self._resultClick(this);
+        }));
         this.own(on(this.map.infoWindow, "selection-change", lang.hitch(this, function (e) {
           var graphic = this.map.infoWindow.getSelectedFeature();
           if (graphic) {
@@ -146,16 +150,16 @@ define([
           }
         })));
       },
-      
-      destroy: function(){
-        
-        if(this._pagination){
-          this._pagination.destroy(); 
+
+      destroy: function () {
+
+        if (this._pagination) {
+          this._pagination.destroy();
         }
-        
-        this.inherited(arguments);  
+
+        this.inherited(arguments);
       },
-      
+
       // start widget. called by user
       startup: function () {
         if (this.map) {
@@ -194,7 +198,7 @@ define([
           for (var i = 0; i < sources.length; i++) {
             promises.push(this._featureLayerLoaded(sources[i].featureLayer));
           }
-          all(promises).then(lang.hitch(this, function(){
+          all(promises).then(lang.hitch(this, function () {
             for (var i = 0; i < sources.length; i++) {
               var source = sources[i];
               var name = source.name || source.featureLayer.name;
@@ -291,28 +295,41 @@ define([
 
       },
       _resultClick: function (e) {
-        var objectid = domAttr.get(e.target, this._dataObjectId);
-        var active = domClass.contains(e.target, this.css.active);
+        var objectid = domAttr.get(e, this._dataObjectId);
+        var active = domClass.contains(e, this.css.active);
         if (!active) {
           this._resultHighlight(objectid);
           this._selectObject(objectid);
         }
       },
+      _cancelDeferreds: function () {
+        // if we have deferreds
+        if (this._deferreds && this._deferreds.length) {
+          for (var i = 0; i < this._deferreds.length; i++) {
+            // cancel deferred
+            this._deferreds[i].cancel(this.declaredClass + " cancelling request");
+          }
+        }
+        // remove deferreds
+        this._deferreds = [];
+      },
       _selectObject: function (objectid) {
+        this._cancelDeferreds();
         var layer = this.sources[this.activeSourceIndex].featureLayer;
         var q = new Query();
         q.outSpatialReference = this.map.spatialReference;
         q.returnGeometry = true;
         q.where = layer.objectIdField + "=" + objectid;
-        layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
+        var def = layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
           var feature;
           if (featureSet && featureSet.features && featureSet.features.length) {
             feature = featureSet.features[0];
           }
           this.select(feature);
         }), lang.hitch(this, function (error) {
-
+          // todo
         }));
+        this._deferreds.push(def);
       },
       _selectFeature: function (feature) {
         if (feature) {
