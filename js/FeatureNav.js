@@ -185,7 +185,15 @@ define([
         this.set("visible", false);
       },
       select: function (feature) {
-        return this._selectFeature(feature);
+        var sf = this._selectFeature(feature);
+        var evt = {};
+        sf.then(lang.hitch(this, function () {
+          this.emit("select", evt);
+        }), lang.hitch(this, function (error) {
+          evt.error = error;
+          this.emit("select", evt);
+        }));
+        return sf;
       },
       /* ---------------- */
       /* Private Functions */
@@ -269,14 +277,11 @@ define([
             domClass.add(this._sortFieldArea, this.css.hidden);
           }
           this._sortNode.innerHTML = html;
-
-
           if (fields[0]) {
             this.sortField = fields[0];
           } else {
             this.sortField = null;
           }
-
         }));
       },
       _removeResultsHighlight: function () {
@@ -295,7 +300,6 @@ define([
             win.scrollIntoView(q[i]);
           }
         }
-
       },
       _resultClick: function (e) {
         var objectid = domAttr.get(e, this._dataObjectId);
@@ -330,12 +334,12 @@ define([
             feature = featureSet.features[0];
           }
           this.select(feature);
-        }), lang.hitch(this, function (error) {
-          // todo
         }));
         this._deferreds.push(def);
+        return def.promise;
       },
       _selectFeature: function (feature) {
+        var def = new Deferred();
         if (feature) {
           var geometry = feature.geometry;
           if (geometry && geometry.type) {
@@ -367,12 +371,22 @@ define([
             } else if (point) {
               zoomTo = this.map.centerAt(point);
             }
-            zoomTo.then(lang.hitch(this, function () {
-              this.map.infoWindow.setFeatures([feature]);
-              this.map.infoWindow.show(point);
-            }));
+            if (zoomTo) {
+              zoomTo.then(lang.hitch(this, function () {
+                this.map.infoWindow.setFeatures([feature]);
+                this.map.infoWindow.show(point);
+                def.resolve();
+              }));
+            } else {
+              def.reject(new Error(this.declaredClass + " No invalid feature geometry to zoom to"));
+            }
+          } else {
+            def.reject(new Error(this.declaredClass + " Feature does not contain a geometry"));
           }
+        } else {
+          def.reject(new Error(this.declaredClass + " No feature to select"));
         }
+        return def.promise;
       },
       _getFeatureCount: function () {
         var def = new Deferred();
@@ -390,7 +404,7 @@ define([
         }), lang.hitch(this, function (error) {
           def.reject(error);
         }));
-        return def;
+        return def.promise;
       },
       _getFeatures: function () {
         var def = new Deferred();
@@ -427,7 +441,7 @@ define([
         }), lang.hitch(this, function (error) {
           def.reject(error);
         }));
-        return def;
+        return def.promise;
       },
       _init: function () {
         this._layerChanged().then(lang.hitch(this, function () {

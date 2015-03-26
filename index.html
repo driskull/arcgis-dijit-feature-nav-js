@@ -13,7 +13,7 @@
   <style>    
     .map {
       width: 100%;
-      height: 500px;
+      height: 450px;
     }
     body { padding-top: 70px; }
   </style>
@@ -46,12 +46,57 @@
   <script type="text/javascript">
     var fn, myMap, lyr;
 
-    require(["esri/map", "esri/InfoTemplate", "esri/layers/FeatureLayer", "application/FeatureNav", "application/Pagination", "dojo/on"], function (Map, InfoTemplate, FeatureLayer, FeatureNav, Pagination, on) {
+    require(["dojo/dom", "esri/map", "esri/InfoTemplate", "esri/layers/FeatureLayer", "application/FeatureNav", "application/Pagination", "dojo/on"], function (dom, Map, InfoTemplate, FeatureLayer, FeatureNav, Pagination, on) {
 
       myMap = new Map("map", {
         center: [-97.99480078123793, 38.51310605081534],
         zoom: 7,
         basemap: "streets"
+      });
+      
+      myMap.infoWindow.set("popupWindow", false);
+      
+      function displayPopupContent(feature){
+
+          if(feature){
+
+            if(!feature.infoTemplate){
+              var it = new InfoTemplate("", "${*}");
+              feature.setInfoTemplate(it);
+            }
+              var title = feature.getTitle();
+              var content = feature.getContent();
+            dom.byId("popup_title").innerHTML = title;
+              dom.byId("popup_content").innerHTML = content;
+          }
+      }
+      
+      
+      var popup = myMap.infoWindow;
+
+      //when the selection changes update the side panel to display the popup info for the 
+      //currently selected feature. 
+      on(popup, "selection-change", function(){
+          displayPopupContent(popup.getSelectedFeature());
+      });
+
+      //when the selection is cleared remove the popup content from the side panel. 
+      on(popup, "clear-features", function(){
+          //dom.byId replaces dojo.byId
+          //dom.byId("featureCount").innerHTML = "Click to select feature(s)";
+          //registry.byId replaces dijit.byId
+          dom.byId("popup_title").innerHTML = "";
+        dom.byId("popup_content").innerHTML = "";
+          //domUtils.hide(dom.byId("pager"));
+      });
+
+      //When features are associated with the  map's info window update the sidebar with the new content. 
+      on(popup, "set-features", function(){
+          displayPopupContent(popup.getSelectedFeature());
+          //dom.byId("featureCount").innerHTML = popup.features.length + " feature(s) selected";
+
+          //enable navigation if more than one feature is selected 
+          //popup.features.length > 1 ? domUtils.show(dom.byId("pager")) : domUtils.hide(dom.byId("pager"));
       });
 
       lyr = new FeatureLayer("http://services.arcgis.com/DO4gTjwJVIJ7O9Ca/arcgis/rest/services/GeoForm_Survey_v11_live/FeatureServer/0", {
@@ -135,14 +180,24 @@
   <div class="container-fluid">
 
     <div class="row">
-      <div class="col-sm-12 col-md-4">
-        <div id="featureNav"></div>
-      </div>
+      
       <div class="col-sm-12 col-md-8">
         <div class="map panel panel-default">
           <div id="map" class="map"></div>
         </div>
+        <div class="panel panel-default">
+          <div class="panel-heading"><div id="popup_title"></div></div>
+          <div class="panel-body">
+            <div id="popup_content"></div>
+          </div>
+        </div>
+        
       </div>
+      
+      <div class="col-sm-12 col-md-4">
+        <div id="featureNav"></div>
+      </div>
+      
     </div>
 
   </div>
