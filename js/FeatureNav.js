@@ -21,6 +21,7 @@ define([
     "esri/tasks/query",
     "dojo/string",
     "dojo/query",
+    "dojo/keys",
     // dom manipulation
     "dojo/dom-style",
     "dojo/dom-class",
@@ -42,6 +43,7 @@ define([
     Query,
     string,
     query,
+    keys,
     domStyle, domClass, domAttr,
     Deferred,
     win,
@@ -51,6 +53,8 @@ define([
       // my html template string
       templateString: dijitTemplate,
       declaredClass: "dijit.FeatureNav",
+      reHostedFS: /https?:\/\/services.*\.arcgis\.com/i,
+      fieldsRegex: /(?:\$\{([^}]+)\})/g,
 
       // default options
       options: {
@@ -60,6 +64,7 @@ define([
         num: 10,
         start: 0,
         count: 0,
+        searchTerm: "",
         order: "ASC",
         sortField: null,
         activeSourceIndex: 0,
@@ -84,6 +89,9 @@ define([
           glyphIcon: "glyphicon",
           sortAsc: "glyphicon-triangle-top",
           sortDesc: "glyphicon-triangle-bottom",
+          search: "glyphicon-search",
+          inputGroup: "input-group",
+          inputGroupBtn: "input-group-btn",
           form: "form",
           formInline: "form-inline",
           formGroup: "form-group",
@@ -103,6 +111,7 @@ define([
         this.set("map", defaults.map); // readonly todo
         this.set("sources", defaults.sources);
         this.set("num", defaults.num);
+        this.set("searchTerm", defaults.searchTerm);
         this.set("start", defaults.start);
         this.set("order", defaults.order);
         this.set("sortField", defaults.sortField);
@@ -136,6 +145,13 @@ define([
         this.own(on(this._resultsNode, "li:click", function () {
           _self._resultClick(this);
         }));
+        this.own(on(this._searchBtnNode, a11yclick, lang.hitch(this, this._searchClick)));
+        this.own(on(this._searchInputNode, "keypress", lang.hitch(this, function (evt) {
+          var charOrCode = evt.charCode || evt.keyCode;
+          if (charOrCode === keys.ENTER) {
+            this._searchClick();
+          }
+        })));
         this.own(on(this.map.infoWindow, "selection-change", lang.hitch(this, function (e) {
           var graphic = this.map.infoWindow.getSelectedFeature();
           if (graphic) {
@@ -237,6 +253,9 @@ define([
         }
         this.set("order", newOrder);
       },
+      _searchClick: function () {
+        this.set("searchTerm", this._searchInputNode.value);
+      },
       _updateOrder: function () {
         var title, text;
         var order = this.order.toUpperCase();
@@ -259,7 +278,7 @@ define([
         var layer = source.featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
           var fields = [];
-          source.template.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g,
+          source.template.replace(this.fieldsRegex,
             function (match, key, format) {
               fields.push(key);
             });
@@ -338,6 +357,15 @@ define([
         this._deferreds.push(def);
         return def.promise;
       },
+      // note: feature service helper for searches
+      _containsNonLatinCharacter: function (s) {
+        for (var i = 0; i < s.length; i++) {
+          if (s.charCodeAt(i) > 255) {
+            return true;
+          }
+        }
+        return false;
+      },
       _selectFeature: function (feature) {
         var def = new Deferred();
         if (feature) {
@@ -393,9 +421,32 @@ define([
         var source = this.sources[this.activeSourceIndex];
         var layer = source.featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
+          var searchFields = [];
+          source.template.replace(this.fieldsRegex,
+            function (match, key, format) {
+              searchFields.push(key);
+            });
           var q = new Query();
           q.returnGeometry = false;
           q.where = "1=1";
+          if (this.searchTerm) {
+            // Fix for non latin characters
+            var nlc = "";
+            // is hosted fs and has non latin char
+            if (this.reHostedFS.test(layer.url) && this._containsNonLatinCharacter(this.searchTerm)) {
+              nlc = "N";
+            }
+            if (searchFields && searchFields.length) {
+              for (var i = 0; i < searchFields.length; i++) {
+                if (i === 0) {
+                  q.where = "";
+                } else {
+                  q.where += " or ";
+                }
+                q.where += "UPPER(" + searchFields[i] + ") LIKE " + nlc + "'%" + this.searchTerm.toUpperCase() + "%'";
+              }
+            }
+          }
           layer.queryCount(q, lang.hitch(this, function (response) {
             def.resolve(response);
           }), lang.hitch(this, function (error) {
@@ -415,10 +466,12 @@ define([
           this.map.infoWindow.hide();
         }
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
-          var fields = [];
-          source.template.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g,
+          var fields = [],
+            searchFields = [];
+          source.template.replace(this.fieldsRegex,
             function (match, key, format) {
               fields.push(key);
+              searchFields.push(key);
             });
           var hasObjectId = array.indexOf(fields, layer.objectIdField);
           if (hasObjectId === -1) {
@@ -428,6 +481,24 @@ define([
           q.outSpatialReference = this.map.spatialReference;
           q.returnGeometry = false;
           q.where = "1=1";
+          if (this.searchTerm) {
+            // Fix for non latin characters
+            var nlc = "";
+            // is hosted fs and has non latin char
+            if (this.reHostedFS.test(layer.url) && this._containsNonLatinCharacter(this.searchTerm)) {
+              nlc = "N";
+            }
+            if (searchFields && searchFields.length) {
+              for (var i = 0; i < searchFields.length; i++) {
+                if (i === 0) {
+                  q.where = "";
+                } else {
+                  q.where += " or ";
+                }
+                q.where += "UPPER(" + searchFields[i] + ") LIKE " + nlc + "'%" + this.searchTerm.toUpperCase() + "%'";
+              }
+            }
+          }
           q.orderByFields = [this.sortField + " " + this.order];
           q.outFields = fields;
           q.num = this.num;
@@ -550,6 +621,12 @@ define([
             this._pagination.set("page", 0);
           }
           this.set("start", 0);
+        }
+      },
+      _setSearchTermAttr: function (newVal) {
+        this.searchTerm = newVal;
+        if (this._created) {
+          this._layerChanged();
         }
       },
       // note: changing the theme will require the developer to style the widget.

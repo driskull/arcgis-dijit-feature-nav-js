@@ -3,6 +3,15 @@
     <div class="${css.panelBody}">
       <div class="${css.form}" data-dojo-attach-point="_layerArea">
         <div class="${css.formGroup}">
+          <label for="${id}_search">${_i18n.search}</label>
+          <div class="${css.inputGroup}">
+            <input data-dojo-attach-point="_searchInputNode" id="${id}_search" value="${searchTerm}" type="text" class="${css.formControl}" placeholder="">
+            <span class="${css.inputGroupBtn}">
+              <span data-dojo-attach-point="_searchBtnNode" class="${css.btn} ${css.btnDefault}"><span class="${css.glyphIcon} ${css.search}"></span></span>
+            </span>
+          </div>
+        </div>
+        <div class="${css.formGroup}">
           <label for="${id}_select_layer">${_i18n.layer}</label>
           <select id="${id}_select_layer" class="${css.formControl}" data-dojo-attach-point="_layerNode"></select>
           </span>

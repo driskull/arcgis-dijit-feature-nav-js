@@ -5,6 +5,7 @@ define({
     order: "Order",
     desc: "Desc",
     asc: "Asc",
+    search: "Search",
     ascending: "Ascending",
     descending: "Descending"
   })

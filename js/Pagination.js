@@ -144,7 +144,7 @@ define([
           // determine pagination total size
           this._paginationCount = this._npCount + this._totalMiddlePages;
           // if pages matches size of pagination
-          if (this.totalPages === this._paginationCount) {
+          if (this.totalPages === this._totalMiddlePages) {
             this._helipText = "";
           }
           // pagination previous
