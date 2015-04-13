@@ -5,7 +5,9 @@ define({
     order: "Order",
     desc: "Desc",
     asc: "Asc",
+    loading: "loading&hellip;",
     search: "Search",
+    noResults: "No results",
     ascending: "Ascending",
     descending: "Descending"
   })

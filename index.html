@@ -10,12 +10,15 @@
   <link rel="stylesheet" href="http://js.arcgis.com/3.13/esri/css/esri.css">
   <link rel="stylesheet" href="js/FeatureNav/css/FeatureNav.css">
 
-  <style>    
+  <style>
     .map {
       width: 100%;
       height: 450px;
     }
-    body { padding-top: 70px; }
+    
+    body {
+      padding-top: 70px;
+    }
   </style>
 
 
@@ -46,57 +49,76 @@
   <script type="text/javascript">
     var fn, myMap, lyr;
 
-    require(["dojo/dom", "esri/map", "esri/InfoTemplate", "esri/layers/FeatureLayer", "application/FeatureNav", "application/Pagination", "dojo/on"], function (dom, Map, InfoTemplate, FeatureLayer, FeatureNav, Pagination, on) {
+    require(["dojo/dom", "esri/map", "esri/InfoTemplate", "esri/layers/FeatureLayer", "application/FeatureNav", "application/Pagination", "dojo/on", "dojo/dom-class"], function (dom, Map, InfoTemplate, FeatureLayer, FeatureNav, Pagination, on, domClass) {
 
       myMap = new Map("map", {
         center: [-97.99480078123793, 38.51310605081534],
         zoom: 7,
         basemap: "streets"
       });
-      
+
       myMap.infoWindow.set("popupWindow", false);
-      
-      function displayPopupContent(feature){
 
-          if(feature){
+      function displayPopupContent(feature) {
 
-            if(!feature.infoTemplate){
-              var it = new InfoTemplate("", "${*}");
-              feature.setInfoTemplate(it);
-            }
-              var title = feature.getTitle();
-              var content = feature.getContent();
-            dom.byId("popup_title").innerHTML = title;
-              dom.byId("popup_content").innerHTML = content;
+        if (feature) {
+
+          if (!feature.infoTemplate) {
+            var it = new InfoTemplate("", "${*}");
+            feature.setInfoTemplate(it);
           }
+          var title = feature.getTitle();
+          var content = feature.getContent();
+          dom.byId("popup_title").innerHTML = title;
+          dom.byId("popup_content").innerHTML = content;
+        }
+        dom.byId("feature_count").innerHTML = (popup.selectedIndex + 1) + " of " + popup.features.length;
+
       }
-      
-      
+
+      function selectPrevious() {
+        myMap.infoWindow.selectPrevious();
+      }
+
+      function selectNext() {
+        myMap.infoWindow.selectNext();
+      }
+
+
       var popup = myMap.infoWindow;
 
       //when the selection changes update the side panel to display the popup info for the 
       //currently selected feature. 
-      on(popup, "selection-change", function(){
-          displayPopupContent(popup.getSelectedFeature());
+      on(popup, "selection-change", function () {
+        displayPopupContent(popup.getSelectedFeature());
       });
 
       //when the selection is cleared remove the popup content from the side panel. 
-      on(popup, "clear-features", function(){
-          //dom.byId replaces dojo.byId
-          //dom.byId("featureCount").innerHTML = "Click to select feature(s)";
-          //registry.byId replaces dijit.byId
-          dom.byId("popup_title").innerHTML = "";
-        dom.byId("popup_content").innerHTML = "";
-          //domUtils.hide(dom.byId("pager"));
+      on(popup, "clear-features", function () {
+        //dom.byId replaces dojo.byId
+        dom.byId("feature_count").innerHTML = "Click to select feature(s)";
+        //registry.byId replaces dijit.byId
+        dom.byId("popup_title").innerHTML = "Select a feature";
+        dom.byId("popup_content").innerHTML = "Sort through results and select a feature to view.";
+        domClass.add(dom.byId("feature_pagination"), "hidden");
       });
 
-      //When features are associated with the  map's info window update the sidebar with the new content. 
-      on(popup, "set-features", function(){
-          displayPopupContent(popup.getSelectedFeature());
-          //dom.byId("featureCount").innerHTML = popup.features.length + " feature(s) selected";
+      on(dom.byId("previous"), "click", selectPrevious);
+      on(dom.byId("next"), "click", selectNext);
 
-          //enable navigation if more than one feature is selected 
-          //popup.features.length > 1 ? domUtils.show(dom.byId("pager")) : domUtils.hide(dom.byId("pager"));
+      //When features are associated with the  map's info window update the sidebar with the new content. 
+      on(popup, "set-features", function () {
+        displayPopupContent(popup.getSelectedFeature());
+
+
+
+        //enable navigation if more than one feature is selected 
+        if (popup.features.length > 1) {
+          domClass.remove(dom.byId("feature_pagination"), "hidden");
+        } else {
+          domClass.add(dom.byId("feature_pagination"), "hidden");
+        }
+
       });
 
       lyr = new FeatureLayer("http://services.arcgis.com/DO4gTjwJVIJ7O9Ca/arcgis/rest/services/GeoForm_Survey_v11_live/FeatureServer/0", {
@@ -113,7 +135,7 @@
 
       fn = new FeatureNav({
         map: myMap,
-        num: 10,
+        num: 8,
         start: 0,
         order: "ASC",
         activeSourceIndex: 0,
@@ -147,57 +169,96 @@
 
 
   <nav class="navbar navbar-inverse navbar-fixed-top">
-  <div class="container-fluid">
+    <div class="container-fluid">
       <!-- Brand and toggle get grouped for better mobile display -->
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-      <a class="navbar-brand" href="#">GeoForm</a>
-    </div>
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">GeoForm</a>
+      </div>
 
-    <!-- Collect the nav links, forms, and other content for toggling -->
-    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-      <ul class="nav navbar-nav">
-        <li class="active"><a href="#"><span class="glyphicon glyphicon-map-marker"></span> Submissions</a></li>
-        <li><a href="#"><span class="glyphicon glyphicon-list"></span> Legend</a></li>
-        <li><a href="#"><span class="glyphicon glyphicon-info-sign"></span> About</a></li>
-      </ul>
-
-      <ul class="nav navbar-nav navbar-right">
-        <li><div class="btn btn-primary navbar-btn">Submit a report</div></li>
-        <li><a href="#"><span class="glyphicon glyphicon-search"></span> Search</a></li>
-        <li><a href="#">Share</a></li>
-      </ul>
-    </div><!-- /.navbar-collapse -->
+      <!-- Collect the nav links, forms, and other content for toggling -->
+      <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+        <div class="navbar-form navbar-left">
+          <div class="btn btn-primary">Submit report</div>
+        </div>
+        <ul class="nav navbar-nav navbar-right">
+          <li><a href="#">Share</a>
+          </li>
+        </ul>
+      </div>
+      <!-- /.navbar-collapse -->
     </div>
   </nav>
-  
+
 
   <div class="container-fluid">
 
     <div class="row">
-      
+
       <div class="col-sm-12 col-md-8">
         <div class="map panel panel-default">
           <div id="map" class="map"></div>
         </div>
+
+
+
         <div class="panel panel-default">
-          <div class="panel-heading"><div id="popup_title"></div></div>
+          <div class="panel-heading">
+            <div id="popup_title"></div>
+          </div>
           <div class="panel-body">
+
             <div id="popup_content"></div>
           </div>
+          <div class="panel-footer hidden" id="feature_pagination">
+
+            <span class="btn-group" role="group">
+          <span id="previous" class="btn btn-default"><span data-page="disabled" aria-hidden="true" class="glyphicon glyphicon-menu-left"></span></span><span class="btn btn-default" id="next"><span data-page="disabled" aria-hidden="true" class="glyphicon glyphicon-menu-right"></span></span>
+            </span>
+
+            <span id="feature_count"></span>
+
+
+
+          </div>
         </div>
-        
+
       </div>
-      
+
       <div class="col-sm-12 col-md-4">
-        <div id="featureNav"></div>
+
+        <div style="margin:0 0 10px 0;">
+          <ul class="nav nav-pills">
+            <li role="presentation" class="active"><a href="#reports"><span class="glyphicon glyphicon-map-marker"></span> Reports</a>
+            </li>
+            <li role="presentation"><a href="#legend"><span class="glyphicon glyphicon-list "></span> Legend</a>
+            </li>
+            <li role="presentation"><a href="#about"><span class="glyphicon glyphicon-info-sign"></span> About</a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="tab-content">
+          <div class="tab-pane active" id="reports">
+            <div id="featureNav"></div>
+          </div>
+          <div class="tab-pane" id="legend">
+
+          </div>
+          <div class="tab-pane" id="about">
+
+          </div>
+        </div>
+
+
+
       </div>
-      
+
     </div>
 
   </div>

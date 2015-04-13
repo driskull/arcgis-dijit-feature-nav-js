@@ -81,12 +81,17 @@ define([
           list: "list-group",
           listItem: "list-group-item",
           active: "active",
+          alert: "alert",
+          alertInfo: "alert-info",
+          alertWarning: "alert-warning",
           panel: "panel",
           panelBody: "panel-body",
           panelDefault: "panel-default",
           btn: "btn",
           btnDefault: "btn-default",
           glyphIcon: "glyphicon",
+          refresh: "glyphicon-refresh",
+          refreshAnimate: "glyphicon-refresh-animate",
           sortAsc: "glyphicon-triangle-top",
           sortDesc: "glyphicon-triangle-bottom",
           search: "glyphicon-search",
@@ -503,6 +508,8 @@ define([
           q.outFields = fields;
           q.num = this.num;
           q.start = this.start;
+          // loading spinner
+          this._resultsNode.innerHTML = "<div class=\"" + this.css.alert + " " + this.css.alertInfo + "\" role=\"alert\"><span class=\"" + this.css.glyphIcon + " " + this.css.refresh + " " + this.css.refreshAnimate + "\"></span> " + this._i18n.loading + "</div>";
           layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
             this._displayResults(layer, featureSet);
             def.resolve();
@@ -532,13 +539,18 @@ define([
         var source = this.sources[this.activeSourceIndex];
         var t = source.template;
         var html = "";
-        html += "<ul class=\"" + this.css.list + "\">";
-        for (var i = 0; i < features.length; i++) {
-          var feature = features[i];
-          var sub = string.substitute(t, feature.attributes, this._sub);
-          html += "<li class=\"" + this.css.listItem + "\" " + this._dataObjectId + "=\"" + feature.attributes[layer.objectIdField] + "\">" + sub + "</li>";
+        if (features.length) {
+          html += "<ul class=\"" + this.css.list + "\">";
+          for (var i = 0; i < features.length; i++) {
+            var feature = features[i];
+            var sub = string.substitute(t, feature.attributes, this._sub);
+            html += "<li class=\"" + this.css.listItem + "\" " + this._dataObjectId + "=\"" + feature.attributes[layer.objectIdField] + "\">" + sub + "</li>";
+          }
+          html += "</ul>";
         }
-        html += "</ul>";
+        if (!html) {
+          html = "<div class=\"" + this.css.alert + " " + this.css.alertWarning + "\" role=\"alert\">" + this._i18n.noResults + "</div>";
+        }
         this._resultsNode.innerHTML = html;
       },
       _featureLayerLoaded: function (layer) {
