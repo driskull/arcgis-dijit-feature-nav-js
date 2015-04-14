@@ -9,7 +9,8 @@
   <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
   <link rel="stylesheet" href="http://js.arcgis.com/3.13/esri/css/esri.css">
   <link rel="stylesheet" href="js/FeatureNav/css/FeatureNav.css">
-
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
   <style>
     .map {
       width: 100%;
@@ -231,30 +232,30 @@
       </div>
 
       <div class="col-sm-12 col-md-4">
+        <div class="tabbable">
+          <div style="margin:0 0 10px 0;">
+            <ul class="nav nav-pills">
+              <li role="presentation" class="active"><a data-toggle="tab" href="#reports"><span class="glyphicon glyphicon-map-marker"></span> Reports</a>
+              </li>
+              <li role="presentation"><a data-toggle="tab" href="#legend"><span class="glyphicon glyphicon-list "></span> Legend</a>
+              </li>
+              <li role="presentation"><a data-toggle="tab" href="#about"><span class="glyphicon glyphicon-info-sign"></span> About</a>
+              </li>
+            </ul>
+          </div>
 
-        <div style="margin:0 0 10px 0;">
-          <ul class="nav nav-pills">
-            <li role="presentation" class="active"><a href="#reports"><span class="glyphicon glyphicon-map-marker"></span> Reports</a>
-            </li>
-            <li role="presentation"><a href="#legend"><span class="glyphicon glyphicon-list "></span> Legend</a>
-            </li>
-            <li role="presentation"><a href="#about"><span class="glyphicon glyphicon-info-sign"></span> About</a>
-            </li>
-          </ul>
+          <div class="tab-content">
+            <div class="tab-pane active" id="reports">
+              <div id="featureNav"></div>
+            </div>
+            <div class="tab-pane" id="legend">
+
+            </div>
+            <div class="tab-pane" id="about">
+
+            </div>
+          </div>
         </div>
-
-        <div class="tab-content">
-          <div class="tab-pane active" id="reports">
-            <div id="featureNav"></div>
-          </div>
-          <div class="tab-pane" id="legend">
-
-          </div>
-          <div class="tab-pane" id="about">
-
-          </div>
-        </div>
-
 
 
       </div>
