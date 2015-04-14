@@ -87,6 +87,8 @@ define([
           panel: "panel",
           panelBody: "panel-body",
           panelDefault: "panel-default",
+          pullRight: "pull-right",
+          pullLeft: "pull-left",
           btn: "btn",
           btnDefault: "btn-default",
           glyphIcon: "glyphicon",
@@ -331,7 +333,9 @@ define([
         if (!active) {
           win.scrollIntoView(this.map.container);
           this._resultHighlight(objectid);
-          this._selectObject(objectid);
+          this._selectObject(e, objectid).then(lang.hitch(this, function (feature) {
+            this.select(feature);
+          }));
         }
       },
       _cancelDeferreds: function () {
@@ -345,19 +349,29 @@ define([
         // remove deferreds
         this._deferreds = [];
       },
-      _selectObject: function (objectid) {
+      _selectObject: function (e, objectid) {
+        var def = new Deferred();
+        // show spinner
+        var r = query("." + this.css.refresh, e);
+        if (r && r.length) {
+          domClass.remove(r[0], this.css.hidden);
+        }
         this._cancelDeferreds();
         var layer = this.sources[this.activeSourceIndex].featureLayer;
         var q = new Query();
         q.outSpatialReference = this.map.spatialReference;
         q.returnGeometry = true;
         q.where = layer.objectIdField + "=" + objectid;
-        var def = layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
+        layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
+          // remove spinner
+          domClass.add(r[0], this.css.hidden);
           var feature;
           if (featureSet && featureSet.features && featureSet.features.length) {
             feature = featureSet.features[0];
           }
-          this.select(feature);
+          def.resolve(feature);
+        }), lang.hitch(this, function (error) {
+          def.reject(error);
         }));
         this._deferreds.push(def);
         return def.promise;
@@ -544,7 +558,7 @@ define([
           for (var i = 0; i < features.length; i++) {
             var feature = features[i];
             var sub = string.substitute(t, feature.attributes, this._sub);
-            html += "<li class=\"" + this.css.listItem + "\" " + this._dataObjectId + "=\"" + feature.attributes[layer.objectIdField] + "\">" + sub + "</li>";
+            html += "<li class=\"" + this.css.listItem + "\" " + this._dataObjectId + "=\"" + feature.attributes[layer.objectIdField] + "\"><span class=\"" + this.css.glyphIcon + " " + this.css.refresh + " " + this.css.refreshAnimate + " " + this.css.hidden + " " + this.css.pullRight + "\"></span>" + sub + "</li>";
           }
           html += "</ul>";
         }
