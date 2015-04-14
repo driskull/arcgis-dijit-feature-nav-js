@@ -352,9 +352,9 @@ define([
       _selectObject: function (e, objectid) {
         var def = new Deferred();
         // show spinner
-        var r = query("." + this.css.refresh, e);
-        if (r && r.length) {
-          domClass.remove(r[0], this.css.hidden);
+        var item = query("." + this.css.refresh, e);
+        if (item && item.length) {
+          domClass.remove(item[0], this.css.hidden);
         }
         this._cancelDeferreds();
         var layer = this.sources[this.activeSourceIndex].featureLayer;
@@ -363,8 +363,13 @@ define([
         q.returnGeometry = true;
         q.where = layer.objectIdField + "=" + objectid;
         layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
-          // remove spinner
-          domClass.add(r[0], this.css.hidden);
+          // remove spinners
+          var items = query("." + this.css.refresh);
+          if (items && items.length) {
+            for (var i = 0; i < items.length; i++) {
+              domClass.add(items[i], this.css.hidden);
+            }
+          }
           var feature;
           if (featureSet && featureSet.features && featureSet.features.length) {
             feature = featureSet.features[0];
