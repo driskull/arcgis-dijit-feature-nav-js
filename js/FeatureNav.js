@@ -22,6 +22,7 @@ define([
     "dojo/string",
     "dojo/query",
     "dojo/keys",
+    "dojo/date/locale",
     // dom manipulation
     "dojo/dom-style",
     "dojo/dom-class",
@@ -44,6 +45,7 @@ define([
     string,
     query,
     keys,
+    locale,
     domStyle, domClass, domAttr,
     Deferred,
     win,
@@ -547,9 +549,19 @@ define([
           this.emit("load", {});
         }));
       },
-      _sub: function (str) {
+      _sub: function (str, field) {
         if (!str) {
           return "";
+        }
+        var source = this.sources[this.activeSourceIndex];
+        // format date fields
+        if (source && source.featureLayer) {
+          var field = source.featureLayer.getField(field);
+          if (field && field.type === "esriFieldTypeDate") {
+            var d = new Date(str);
+            var f = locale.format(d);
+            return f;
+          }
         }
         return str;
       },
@@ -562,7 +574,7 @@ define([
           html += "<ul class=\"" + this.css.list + "\">";
           for (var i = 0; i < features.length; i++) {
             var feature = features[i];
-            var sub = string.substitute(t, feature.attributes, this._sub);
+            var sub = string.substitute(t, feature.attributes, lang.hitch(this, this._sub));
             html += "<li class=\"" + this.css.listItem + "\" " + this._dataObjectId + "=\"" + feature.attributes[layer.objectIdField] + "\"><span class=\"" + this.css.glyphIcon + " " + this.css.refresh + " " + this.css.refreshAnimate + " " + this.css.hidden + " " + this.css.pullRight + "\"></span>" + sub + "</li>";
           }
           html += "</ul>";
