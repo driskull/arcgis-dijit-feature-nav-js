@@ -287,10 +287,11 @@ define([
         var layer = source.featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
           var fields = [];
-          source.template.replace(this.fieldsRegex,
-            function (match, key, format) {
+          if (source.template) {
+            source.template.replace(this.fieldsRegex, function (match, key, format) {
               fields.push(key);
             });
+          }
           var html = "";
 
           if (fields && fields.length > 1) {
@@ -442,42 +443,83 @@ define([
         }
         return def.promise;
       },
+      _supportsPagination: function (source) {
+        // check if featurelayer supports pagination
+        var supported = false;
+        if (source.featureLayer) {
+          // supports pagination
+          if (source.featureLayer.advancedQueryCapabilities && source.featureLayer.advancedQueryCapabilities.supportsPagination) {
+            supported = true;
+          }
+        }
+        return supported;
+      },
+      _whereClause: function (layer, searchFields) {
+        var where = "1=1";
+        if (this.searchTerm) {
+          // Fix for non latin characters
+          var nlc = "";
+          // is hosted fs and has non latin char
+          if (this.reHostedFS.test(layer.url) && this._containsNonLatinCharacter(this.searchTerm)) {
+            nlc = "N";
+          }
+          if (searchFields && searchFields.length) {
+            for (var i = 0; i < searchFields.length; i++) {
+              if (i === 0) {
+                where = "";
+              } else {
+                where += " or ";
+              }
+              var field = searchFields[i];
+              var fieldInfo = layer.getField(field);
+              if (fieldInfo.type === "esriFieldTypeString" || fieldInfo.type === "esriFieldTypeDate") {
+                where += "UPPER(" + field + ") LIKE " + nlc + "'%" + this.searchTerm.toUpperCase() + "%'";
+              } else {
+                where += field + " = " + this.searchTerm;
+              }
+            }
+          }
+        }
+        return where;
+      },
       _getFeatureCount: function () {
         var def = new Deferred();
         var source = this.sources[this.activeSourceIndex];
         var layer = source.featureLayer;
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
+          // if pagination is supported
+          source.supportsPagination = this._supportsPagination(source);
           var searchFields = [];
-          source.template.replace(this.fieldsRegex,
-            function (match, key, format) {
+          if (source.template) {
+            source.template.replace(this.fieldsRegex, function (match, key, format) {
               searchFields.push(key);
             });
-          var q = new Query();
-          q.returnGeometry = false;
-          q.where = "1=1";
-          if (this.searchTerm) {
-            // Fix for non latin characters
-            var nlc = "";
-            // is hosted fs and has non latin char
-            if (this.reHostedFS.test(layer.url) && this._containsNonLatinCharacter(this.searchTerm)) {
-              nlc = "N";
-            }
-            if (searchFields && searchFields.length) {
-              for (var i = 0; i < searchFields.length; i++) {
-                if (i === 0) {
-                  q.where = "";
-                } else {
-                  q.where += " or ";
-                }
-                q.where += "UPPER(" + searchFields[i] + ") LIKE " + nlc + "'%" + this.searchTerm.toUpperCase() + "%'";
-              }
-            }
           }
-          layer.queryCount(q, lang.hitch(this, function (response) {
-            def.resolve(response);
-          }), lang.hitch(this, function (error) {
-            def.reject(error);
-          }));
+          var q = new Query();
+          q.where = this._whereClause(layer, searchFields);
+          // layer supports pagination
+          if (source.supportsPagination) {
+            q.returnGeometry = false;
+            layer.queryCount(q, lang.hitch(this, function (response) {
+              def.resolve(response);
+            }), lang.hitch(this, function (error) {
+              def.reject(error);
+            }));
+          } else {
+            layer.queryIds(q, lang.hitch(this, function (response) {
+              var l = 0;
+              this._Ids = response;
+              if (response && response.length) {
+                l = response.length;
+              }
+              def.resolve(l);
+            }), lang.hitch(this, function (error) {
+              this._displayResults(layer, {
+                features: []
+              });
+              def.reject(error);
+            }));
+          }
         }), lang.hitch(this, function (error) {
           def.reject(error);
         }));
@@ -492,13 +534,15 @@ define([
           this.map.infoWindow.hide();
         }
         this._featureLayerLoaded(layer).then(lang.hitch(this, function () {
+          var performSearch = true;
           var fields = [],
             searchFields = [];
-          source.template.replace(this.fieldsRegex,
-            function (match, key, format) {
+          if (source.template) {
+            source.template.replace(this.fieldsRegex, function (match, key, format) {
               fields.push(key);
               searchFields.push(key);
             });
+          }
           var hasObjectId = array.indexOf(fields, layer.objectIdField);
           if (hasObjectId === -1) {
             fields.push(layer.objectIdField);
@@ -506,37 +550,44 @@ define([
           var q = new Query();
           q.outSpatialReference = this.map.spatialReference;
           q.returnGeometry = false;
-          q.where = "1=1";
-          if (this.searchTerm) {
-            // Fix for non latin characters
-            var nlc = "";
-            // is hosted fs and has non latin char
-            if (this.reHostedFS.test(layer.url) && this._containsNonLatinCharacter(this.searchTerm)) {
-              nlc = "N";
+          if (layer.supportsAdvancedQueries && this.sortField) {
+            q.orderByFields = [this.sortField + " " + this.order];
+          }
+          q.outFields = fields;
+          if (source.supportsPagination) {
+            q.where = this._whereClause(layer, searchFields);
+            q.num = this.num;
+            q.start = this.start;
+          } else {
+            var copy = lang.clone(this._Ids);
+            var Ids = [];
+            if (copy && copy.length) {
+              Ids = copy.slice(this.start, this.start + this.num);
             }
-            if (searchFields && searchFields.length) {
-              for (var i = 0; i < searchFields.length; i++) {
-                if (i === 0) {
-                  q.where = "";
-                } else {
-                  q.where += " or ";
-                }
-                q.where += "UPPER(" + searchFields[i] + ") LIKE " + nlc + "'%" + this.searchTerm.toUpperCase() + "%'";
-              }
+            if (Ids && Ids.length) {
+              q.objectIds = Ids;
+            } else {
+              performSearch = false;
             }
           }
-          q.orderByFields = [this.sortField + " " + this.order];
-          q.outFields = fields;
-          q.num = this.num;
-          q.start = this.start;
           // loading spinner
           this._resultsNode.innerHTML = "<div class=\"" + this.css.alert + " " + this.css.alertInfo + "\" role=\"alert\"><span class=\"" + this.css.glyphIcon + " " + this.css.refresh + " " + this.css.refreshAnimate + "\"></span> " + this._i18n.loading + "</div>";
-          layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
-            this._displayResults(layer, featureSet);
+          if (performSearch) {
+            layer.queryFeatures(q, lang.hitch(this, function (featureSet) {
+              this._displayResults(layer, featureSet);
+              def.resolve();
+            }), lang.hitch(this, function (error) {
+              this._displayResults(layer, {
+                features: []
+              });
+              def.reject(error);
+            }));
+          } else {
+            this._displayResults(layer, {
+              features: []
+            });
             def.resolve();
-          }), lang.hitch(this, function (error) {
-            def.reject(error);
-          }));
+          }
         }), lang.hitch(this, function (error) {
           def.reject(error);
         }));
@@ -556,8 +607,8 @@ define([
         var source = this.sources[this.activeSourceIndex];
         // format date fields
         if (source && source.featureLayer) {
-          var field = source.featureLayer.getField(field);
-          if (field && field.type === "esriFieldTypeDate") {
+          var fieldInfo = source.featureLayer.getField(field);
+          if (fieldInfo && fieldInfo.type === "esriFieldTypeDate") {
             var d = new Date(str);
             var f = locale.format(d);
             return f;
@@ -570,7 +621,7 @@ define([
         var source = this.sources[this.activeSourceIndex];
         var t = source.template;
         var html = "";
-        if (features.length) {
+        if (features && features.length) {
           html += "<ul class=\"" + this.css.list + "\">";
           for (var i = 0; i < features.length; i++) {
             var feature = features[i];
