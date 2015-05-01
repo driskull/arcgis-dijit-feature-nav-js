@@ -9,6 +9,15 @@
   -moz-animation: spinm .7s infinite linear;
 }
 
+.pagination {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.page-info {
+  margin: 5px 0 20px 0;
+}
+
 @keyframes spin {
   from {
     transform: scale(1) rotate(0deg);

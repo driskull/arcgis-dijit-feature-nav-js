@@ -27,7 +27,11 @@ define([
           glyphicon: "glyphicon",
           left: "glyphicon-menu-left",
           right: "glyphicon-menu-right",
-          hiddenXS: "hidden-xs"
+          pageInfo: "page-info",
+          hiddenXS: "hidden-xs",
+          hiddenSM: "hidden-sm",
+          hiddenMD: "hidden-md",
+          hiddenLG: "hidden-lg"
         };
         // defaults
         this.options = {
@@ -62,8 +66,7 @@ define([
       /* ---------------- */
       // start widget
       startup: function () {
-        // create pagination links
-        this.render();
+        this.set("page", this.page);
         // set widget ready
         this.set("loaded", true);
         this.emit("load", {});
@@ -88,16 +91,8 @@ define([
               domClass.add(target, this.css.active);
               // get offset number
               var selectedPage = parseInt(pg, 10);
-              var selectedResultStart = (selectedPage - 1) * this.num;
-              var selectedResultEnd = selectedResultStart + this.num;
               // set new page
               this.set("page", selectedPage);
-              // event
-              this.emit("page", {
-                selectedPage: selectedPage,
-                selectedResultStart: selectedResultStart,
-                selectedResultEnd: selectedResultEnd
-              });
             }
             evt.preventDefault();
             evt.stopPropagation();
@@ -277,8 +272,19 @@ define([
         this.listNode.innerHTML = this._html;
         // not disabled anymore
         this.set("disabled", false);
-        // call render event
-        this.emit("render", {});
+        // get offset number
+        var selectedPage = this.page;
+        var selectedResultStart = (selectedPage - 1) * this.num;
+        var selectedResultEnd = selectedResultStart + this.num;
+        if (this.total) {
+          this.infoNode.innerHTML = i18n.pagination.page + " " + number.format(this.page) + " of " + number.format(this.totalPages);
+          // event
+          this.emit("page", {
+            selectedPage: selectedPage,
+            selectedResultStart: selectedResultStart,
+            selectedResultEnd: selectedResultEnd
+          });
+        }
       },
 
       /* ---------------- */
