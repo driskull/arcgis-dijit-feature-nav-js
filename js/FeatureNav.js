@@ -336,7 +336,6 @@ define([
         var active = domClass.contains(e, this.css.active);
         if (!active) {
           win.scrollIntoView(this.map.container);
-          this._resultHighlight(objectid);
           this._selectObject(e, objectid).then(lang.hitch(this, function (feature) {
             this.select(feature);
           }));
@@ -361,6 +360,7 @@ define([
           domClass.remove(item[0], this.css.hidden);
         }
         this._cancelDeferreds();
+        this._resultHighlight(objectid);
         var layer = this.sources[this.activeSourceIndex].featureLayer;
         var q = new Query();
         q.outSpatialReference = this.map.spatialReference;
