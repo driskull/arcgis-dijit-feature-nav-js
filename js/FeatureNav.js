@@ -139,9 +139,10 @@ define([
               num: this.num
             }, this._paginationNode);
             this._pagination.startup();
-            this.own(on(this._pagination, "page", lang.hitch(this, function (e) {
+            this._paginationEvent = on.pausable(this._pagination, "page", lang.hitch(this, function (e) {
               this.set("start", e.selectedResultStart);
-            })));
+            }));
+            this.own(this._paginationEvent);
           }));
         }
         this._displaySources();
@@ -683,9 +684,7 @@ define([
       },
       _setNumAttr: function (newVal) {
         this.num = newVal;
-        if (this._created) {
-          this._getFeatures();
-        }
+        this.set("start", 0);
       },
       _setSourcesAttr: function (newVal) {
         this.sources = newVal;
@@ -703,7 +702,10 @@ define([
         this.count = newVal;
         if (this._created) {
           if (this._pagination) {
+            this._paginationEvent.pause();
             this._pagination.set("total", newVal);
+            this._pagination.set("page", 0);
+            this._paginationEvent.resume();
           }
         }
       },
@@ -712,7 +714,9 @@ define([
         if (this._created) {
           this._updateOrder();
           if (this._pagination) {
+            this._paginationEvent.pause();
             this._pagination.set("page", 0);
+            this._paginationEvent.resume();
           }
           this.set("start", 0);
         }
@@ -735,7 +739,9 @@ define([
         this.sortField = newVal;
         if (this._created) {
           if (this._pagination) {
+            this._paginationEvent.pause();
             this._pagination.set("page", 0);
+            this._paginationEvent.resume();
           }
           this.set("start", 0);
         }
